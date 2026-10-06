@@ -57,6 +57,30 @@ Cette commande démarre deux programmes en parallèle :
 | `npm test` | Lance les tests unitaires (Vitest) |
 | `npm run typecheck` | Vérifie les types TypeScript |
 
+## Mettre le site en ligne (Netlify)
+
+Une fois en ligne, plus besoin du terminal : tu ouvres simplement l'adresse de ton site. Le front est servi par Netlify, et la partie qui appelle Claude tourne dans une **fonction Netlify** (`netlify/functions/api.ts`). La clé API reste stockée chez Netlify, jamais dans le navigateur.
+
+1. Va sur <https://app.netlify.com> et connecte-toi avec ton compte GitHub.
+2. Clique sur **Add new project** (ou **Add new site**), puis **Import an existing project**, choisis **GitHub** et sélectionne le dépôt **vinted**.
+3. Choisis la branche à publier (celle qui contient ce code). Ne touche pas aux réglages de build : ils sont lus automatiquement dans `netlify.toml` (commande `npm run build`, dossier `dist`, Node 22).
+4. Ajoute deux **variables d'environnement** (bouton *Add environment variables* sur cet écran, ou plus tard dans *Project configuration → Environment variables*) :
+
+   | Clé | Valeur |
+   |---|---|
+   | `ANTHROPIC_API_KEY` | ta clé API Anthropic |
+   | `CODE_ACCES` | un mot de passe de ton choix |
+
+   > ⚠️ **Mets un `CODE_ACCES`.** Sans lui, n'importe qui trouvant l'adresse de ton site pourrait utiliser ta clé et dépenser tes crédits. Le site te demandera ce code une seule fois par navigateur.
+5. Clique sur **Deploy**. Une à deux minutes plus tard, ton site est disponible à une adresse du type `https://ton-site.netlify.app`.
+
+Bon à savoir :
+
+- Si tu ajoutes ou modifies une variable après coup, relance un déploiement (*Deploys → Trigger deploy → Deploy site*) pour qu'elle soit prise en compte.
+- À chaque modification du code sur GitHub, Netlify republie le site automatiquement.
+- Les cartes sont enregistrées **dans le navigateur, séparément pour chaque adresse** : celles créées sur `localhost` n'apparaissent pas sur `netlify.app`. Pour les transférer, utilise *Exporter → Fichier JSON* sur l'une, puis *Importer un fichier JSON* sur l'autre.
+- Netlify coupe une fonction au bout de 60 secondes : une génération est donc limitée à environ 50 secondes en ligne. C'est largement suffisant avec `CLAUDE_EFFORT=low` (valeur par défaut).
+
 ## Utilisation
 
 ### Raccourcis
@@ -93,26 +117,28 @@ Cette commande démarre deux programmes en parallèle :
 - **Exporter → Fichier JSON** : la carte complète, réimportable.
 - **Import JSON** : depuis l'accueil (crée une nouvelle carte) ou depuis l'éditeur (remplace le contenu de la carte, annulable avec `Ctrl + Z`). Les fichiers au format Claude `{ "titre": "...", "noeuds": [...] }` sont aussi acceptés et disposés automatiquement.
 
-## Configuration (`.env`)
+## Configuration (`.env` en local, variables d'environnement sur Netlify)
 
 | Variable | Obligatoire | Description |
 |---|---|---|
 | `ANTHROPIC_API_KEY` | Oui (pour Claude) | Ta clé API Anthropic |
 | `PORT` | Non | Port du serveur Express (3001 par défaut ; si tu le changes, adapte le proxy dans `vite.config.ts`) |
 | `CLAUDE_EFFORT` | Non | `low` (par défaut, le plus rapide), `medium` ou `high` (plus réfléchi, plus lent et plus coûteux) |
+| `CODE_ACCES` | Non (conseillé en ligne) | Si défini, le site demande ce code avant d'utiliser Claude |
 
 ## Comment ça marche
 
 ```
-Navigateur (React)                Serveur Express                    API Claude
-──────────────────                ───────────────                    ──────────
+Navigateur (React)                Serveur Express (local)            API Claude
+                                  ou fonction Netlify (en ligne)
+──────────────────                ──────────────────────────────     ──────────
 Barre « Décris ta carte… »  ──►  POST /api/generate  ──(clé API)──►  claude-sonnet-5-5
 Clic droit « Développer »   ──►  POST /api/expand                     (sortie JSON structurée)
                             ◄──  { titre, noeuds } nettoyé       ◄──
 Disposition en arbre (dagre), nœuds et liens React Flow
 ```
 
-- **La clé API ne quitte jamais le serveur.** Le front appelle `/api/...` ; en développement, Vite relaie ces appels vers Express (voir `vite.config.ts`). Le fichier `.env` est ignoré par Git.
+- **La clé API ne quitte jamais le serveur.** Le front appelle `/api/...` ; en développement, Vite relaie ces appels vers Express (voir `vite.config.ts`) ; en ligne, Netlify les envoie à la fonction `netlify/functions/api.ts`. Le fichier `.env` est ignoré par Git.
 - Claude répond via une **sortie structurée** (schéma Zod) au format `{ "titre": "...", "noeuds": [{ "id", "texte", "parentId", "couleur", "emoji" }] }`. Le serveur nettoie ensuite la réponse : ids en double, parents inconnus, cycles, couleurs invalides, nœuds déjà existants recopiés.
 - Le **repli serveur** d'Anthropic (`fallbacks: "default"`) est activé : si le modèle décline une demande pour raison de politique d'usage, l'API la réessaie automatiquement sur le modèle de repli prévu.
 - La disposition automatique place les branches principales à droite puis à gauche du nœud central. En mode ajout ou développement, seuls les nouveaux nœuds sont placés, en évitant les chevauchements.
@@ -121,9 +147,12 @@ Disposition en arbre (dagre), nœuds et liens React Flow
 
 ```
 server/
-  index.ts        démarrage du serveur (lit .env)
-  app.ts          routes Express, validation, messages d'erreur en français
+  index.ts        démarrage du serveur local (lit .env)
+  app.ts          serveur Express (local)
+  api.ts          logique de l'API : validation, code d'accès, messages d'erreur en français
   claude.ts       appel à l'API Claude (modèle, consignes, schéma JSON)
+netlify/
+  functions/api.ts  la même API, sous forme de fonction Netlify (en ligne)
 shared/
   aiMap.ts        format JSON de Claude et nettoyage (utilisé par le serveur et le front)
 src/
@@ -137,7 +166,9 @@ src/
 
 | Message | Solution |
 |---|---|
-| « Clé API absente » / « Clé API manquante » | Crée `.env` avec `ANTHROPIC_API_KEY=...`, puis relance `npm run dev` |
+| « Clé API absente » / « Clé API manquante » | En local : crée `.env` avec `ANTHROPIC_API_KEY=...`, puis relance `npm run dev`. Sur Netlify : ajoute la variable, puis redéploie |
+| La fenêtre « Code d'accès » s'affiche | C'est la valeur de `CODE_ACCES` choisie dans tes variables d'environnement |
+| « Le serveur n'a pas répondu à temps » (en ligne) | La génération a dépassé la limite de Netlify : réessaie, ou fais une demande plus courte |
 | « Clé API invalide » | Vérifie la clé (pas d'espace ni de guillemets en trop) |
 | « Serveur local injoignable » | Le serveur Express n'est pas lancé : utilise `npm run dev` (et non `npx vite` seul) |
 | « Trop de demandes » | Limite de débit de l'API atteinte : patiente quelques secondes |

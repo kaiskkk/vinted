@@ -31,7 +31,7 @@ describe("API", () => {
     const { app } = appWith(async () => carte, false);
     const res = await request(app).get("/api/health");
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, modele: "claude-sonnet-5-5", cleApi: false });
+    expect(res.body).toEqual({ ok: true, modele: "claude-sonnet-5-5", cleApi: false, codeRequis: false });
   });
 
   it("refuse une demande vide avec un message en français", async () => {

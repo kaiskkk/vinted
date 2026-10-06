@@ -118,18 +118,25 @@ export function hasCredentials(): boolean {
   return Boolean(process.env.ANTHROPIC_API_KEY?.trim() || process.env.ANTHROPIC_AUTH_TOKEN?.trim());
 }
 
-export function createClaudeGenerator(): MindMapGenerator {
+export interface GeneratorOptions {
+  /** Délai maximum d'un appel à Claude, en millisecondes. */
+  timeoutMs?: number;
+  /** Nouvelles tentatives automatiques du SDK en cas d'erreur passagère. */
+  maxRetries?: number;
+}
+
+export function createClaudeGenerator({ timeoutMs = 120_000, maxRetries = 2 }: GeneratorOptions = {}): MindMapGenerator {
   let client: Anthropic | null = null;
 
   return {
     async generate(input) {
       if (!hasCredentials()) {
         throw new UserFacingError(
-          "Clé API manquante : crée un fichier .env à la racine du projet avec ANTHROPIC_API_KEY=... (voir .env.example), puis relance le serveur.",
+          "Clé API manquante : ajoute ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne), puis relance ou redéploie.",
           500,
         );
       }
-      client ??= new Anthropic({ timeout: 120_000 });
+      client ??= new Anthropic({ timeout: timeoutMs, maxRetries });
 
       const effortEnv = process.env.CLAUDE_EFFORT as Effort | undefined;
       const effort: Effort = effortEnv && EFFORTS.includes(effortEnv) ? effortEnv : "low";

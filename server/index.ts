@@ -13,6 +13,7 @@ const production = process.argv.includes("--production") || process.env.NODE_ENV
 const app = createApp({
   generator: createClaudeGenerator(),
   hasApiKey: hasCredentials,
+  accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
   staticDir: production ? path.resolve(here, "../dist") : undefined,
   log: (message) => console.log(message),
 });

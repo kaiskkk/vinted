@@ -202,8 +202,11 @@ function Editor({ initial }: { initial: MindMap }) {
   // ---------- Vérification du serveur ----------
   useEffect(() => {
     getHealth().then((h) => {
-      if (!h) setWarning("Serveur local injoignable : lance « npm run dev » pour activer la génération avec Claude.");
-      else if (!h.cleApi) setWarning("Clé API absente : ajoute ANTHROPIC_API_KEY dans le fichier .env puis relance le serveur.");
+      if (!h) setWarning("Serveur injoignable : la génération avec Claude est indisponible (en local, lance « npm run dev »).");
+      else if (!h.cleApi)
+        setWarning(
+          "Clé API absente : ajoute ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne).",
+        );
     });
   }, []);
 

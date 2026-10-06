@@ -1,3 +1,4 @@
+import { AccessCodePrompt } from "./components/AccessCodePrompt";
 import { ToastProvider } from "./components/Toasts";
 import { useHashRoute } from "./hooks/useHashRoute";
 import EditorPage from "./pages/Editor";
@@ -8,6 +9,7 @@ export default function App() {
   return (
     <ToastProvider>
       {route.page === "editor" ? <EditorPage key={route.mapId} mapId={route.mapId} /> : <Home />}
+      <AccessCodePrompt />
     </ToastProvider>
   );
 }
