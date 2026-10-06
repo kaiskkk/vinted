@@ -1,0 +1,110 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --animate-pop: pop 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.25);
+  --animate-fade-in: fade-in 0.2s ease-out;
+  --animate-slide-up: slide-up 0.25s ease-out;
+}
+
+@keyframes pop {
+  from { opacity: 0; transform: scale(0.85); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes slide-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes shimmer {
+  from { transform: translateX(-100%); }
+  to { transform: translateX(250%); }
+}
+
+:root {
+  color-scheme: light;
+  --mm-canvas: #f6f7fb;
+  --mm-edge: #94a3b8;
+  --mm-edge-selected: #6366f1;
+}
+.dark {
+  color-scheme: dark;
+  --mm-canvas: #0b0e17;
+  --mm-edge: #475569;
+  --mm-edge-selected: #a5b4fc;
+}
+
+html, body, #root {
+  height: 100%;
+}
+body {
+  @apply bg-slate-50 font-sans text-slate-900 antialiased dark:bg-[#0b0e17] dark:text-slate-100;
+}
+
+/* ---------- React Flow ---------- */
+.react-flow {
+  --xy-background-color: var(--mm-canvas);
+  --xy-background-pattern-color: #cbd5e1;
+  --xy-minimap-background-color: #ffffff;
+  --xy-controls-button-background-color: #ffffff;
+  --xy-controls-button-background-color-hover: #eef2ff;
+  --xy-node-boxshadow-selected: none;
+}
+.dark .react-flow {
+  --xy-background-pattern-color: #1e2537;
+  --xy-minimap-background-color: #121726;
+  --xy-minimap-mask-background-color: rgb(11 14 23 / 0.6);
+  --xy-controls-button-background-color: #161c2c;
+  --xy-controls-button-background-color-hover: #1f2740;
+  --xy-controls-button-color: #cbd5e1;
+  --xy-controls-button-border-color: #232b40;
+}
+.react-flow__controls,
+.react-flow__minimap {
+  @apply overflow-hidden rounded-xl border border-slate-200 shadow-lg shadow-slate-900/5 dark:border-slate-800 dark:shadow-black/40;
+}
+.react-flow__node-mind {
+  /* L'apparence est entièrement gérée par MindNode. */
+  background: transparent;
+  border: none;
+  padding: 0;
+}
+/* Animation douce lors des réorganisations automatiques (désactivée pendant le glisser). */
+.mm-animate .react-flow__node {
+  transition: transform 0.45s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.react-flow__edge-path {
+  transition: stroke 0.15s;
+}
+.react-flow__handle.mm-handle {
+  width: 10px;
+  height: 10px;
+  border: 2px solid white;
+  background: #6366f1;
+  opacity: 0;
+  transition: opacity 0.15s, transform 0.15s;
+}
+.react-flow__node:hover .mm-handle,
+.react-flow__node.selected .mm-handle,
+.react-flow__handle.connectingfrom,
+.react-flow__handle.connectingto {
+  opacity: 1;
+}
+.react-flow__connectionline path {
+  stroke: var(--mm-edge-selected);
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+}
+.react-flow__selection {
+  background: rgb(99 102 241 / 0.08);
+  border: 1px solid rgb(99 102 241 / 0.5);
+}
+
+/* Barre de défilement discrète pour le panneau */
+.mm-scroll::-webkit-scrollbar { width: 8px; }
+.mm-scroll::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300 dark:bg-slate-700; }
