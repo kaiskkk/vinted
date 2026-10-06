@@ -1,15 +1,43 @@
 <!doctype html>
-<html lang="fr" class="dark">
+<html lang="fr">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>" />
-    <title>Cartes mentales</title>
+    <!-- viewport-fit=cover : on gère nous-mêmes les zones sûres (encoche, barre du bas).
+         maximum-scale=1 : pas de zoom automatique d'iOS sur les champs ; le canevas a son propre zoom. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1, maximum-scale=1, viewport-fit=cover, interactive-widget=resizes-content"
+    />
+    <meta name="description" content="ecoleduc — organise tes idées en cartes mentales, sur ordinateur comme sur téléphone." />
+    <meta name="theme-color" content="#0b0e17" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <link rel="icon" href="/icons/icon.svg" type="image/svg+xml" />
+    <link rel="icon" href="/icons/favicon-32.png" sizes="32x32" type="image/png" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="ecoleduc" />
+    <title>ecoleduc</title>
     <script>
-      // Applique le thème avant le premier rendu pour éviter un flash.
-      try {
-        if (localStorage.getItem("mm-theme") === "light") document.documentElement.classList.remove("dark");
-      } catch {}
+      // Thème appliqué avant le premier rendu (évite un flash) : choix explicite, sinon réglage du téléphone.
+      (function () {
+        var choice = null;
+        try {
+          // Ancienne version : « mm-theme » était réécrit à chaque visite. Seul « light » traduit un vrai choix.
+          var legacy = localStorage.getItem("mm-theme");
+          if (legacy !== null) {
+            localStorage.removeItem("mm-theme");
+            if (legacy === "light" && !matchMedia("(prefers-color-scheme: light)").matches) {
+              localStorage.setItem("mm-theme-choice", "light");
+            }
+          }
+          choice = localStorage.getItem("mm-theme-choice");
+        } catch (e) {}
+        var dark = choice ? choice === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+        document.documentElement.classList.toggle("dark", dark);
+        document.querySelector('meta[name="theme-color"]').setAttribute("content", dark ? "#0b0e17" : "#f8fafc");
+      })();
     </script>
   </head>
   <body>

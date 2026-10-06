@@ -39,12 +39,22 @@ export interface MindMap {
   viewport?: Viewport;
 }
 
+/** Miniature d'une carte : rectangles [x, y, largeur, hauteur, couleur] et traits [x1, y1, x2, y2, couleur]. */
+export interface MapPreview {
+  w: number;
+  h: number;
+  n: [number, number, number, number, string][];
+  e: [number, number, number, number, string][];
+}
+
 export interface MapSummary {
   id: string;
   name: string;
   createdAt: number;
   updatedAt: number;
   nodeCount: number;
+  /** Ajouté dans la version 2 ; calculé à la volée pour les cartes plus anciennes. */
+  preview?: MapPreview;
 }
 
 /** Élément glissé depuis la boîte à outils vers le canevas. */

@@ -87,6 +87,52 @@ export const KeyboardIcon = make(
   </>,
 );
 
+export const PaletteIcon = make(
+  <>
+    <path d="M12 22a10 10 0 1 1 10-10c0 2.8-2.2 4-4.5 4H16a2 2 0 0 0-1.5 3.3A1.6 1.6 0 0 1 13.3 22Z" />
+    <circle cx="7.5" cy="11.5" r="1" fill="currentColor" />
+    <circle cx="10.5" cy="7" r="1" fill="currentColor" />
+    <circle cx="15.5" cy="7.5" r="1" fill="currentColor" />
+  </>,
+);
+export const MoreIcon = make(
+  <>
+    <circle cx="5" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="12" cy="12" r="1.3" fill="currentColor" />
+    <circle cx="19" cy="12" r="1.3" fill="currentColor" />
+  </>,
+);
+export const FitIcon = make(
+  <>
+    <path d="M4 9V5a1 1 0 0 1 1-1h4M15 4h4a1 1 0 0 1 1 1v4M20 15v4a1 1 0 0 1-1 1h-4M9 20H5a1 1 0 0 1-1-1v-4" />
+    <circle cx="12" cy="12" r="2.5" />
+  </>,
+);
+export const MinusIcon = make(<path d="M5 12h14" />);
+export const SiblingIcon = make(
+  <>
+    <rect x="3" y="4" width="10" height="6" rx="2" />
+    <rect x="3" y="14" width="10" height="6" rx="2" />
+    <path d="M18 14v6M15 17h6" />
+  </>,
+);
+export const RefreshIcon = make(<path d="M21 12a9 9 0 1 1-2.6-6.4M21 4v5h-5" />);
+export const SearchIcon = make(
+  <>
+    <circle cx="11" cy="11" r="7" />
+    <path d="m20 20-3.5-3.5" />
+  </>,
+);
+export const WifiOffIcon = make(
+  <path d="M2 8.8a15 15 0 0 1 4.2-2.6M10.7 5.1A15 15 0 0 1 22 8.8M5 12.9a10 10 0 0 1 5.2-2.7M16.8 11.5a10 10 0 0 1 2.2 1.4M8.5 16.4a5 5 0 0 1 7 0M12 20h.01M2 2l20 20" />,
+);
+export const AlertIcon = make(
+  <>
+    <circle cx="12" cy="12" r="9" />
+    <path d="M12 8v4M12 16h.01" />
+  </>,
+);
+
 export function Spinner({ className = "" }: { className?: string }) {
   return (
     <svg className={`animate-spin ${className}`} width="16" height="16" viewBox="0 0 24 24" fill="none" aria-hidden="true">

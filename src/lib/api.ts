@@ -2,6 +2,27 @@ import type { AiMap } from "../../shared/aiMap";
 
 const CODE_KEY = "mm-code-acces";
 
+/** Erreur d'appel au serveur ; `retryable` indique si réessayer a des chances de marcher. */
+export class ApiError extends Error {
+  constructor(
+    message: string,
+    public status: number,
+    public retryable: boolean,
+  ) {
+    super(message);
+  }
+}
+
+// Surcharge passagère, délai dépassé, limite de débit : réessayer peut suffire.
+const RETRYABLE = new Set([408, 429, 502, 503, 504]);
+
+export interface Health {
+  ok: boolean;
+  modele: string;
+  cleApi: boolean;
+  codeRequis?: boolean;
+}
+
 type AskCode = (wrong: boolean) => Promise<string | null>;
 let askCode: AskCode | null = null;
 
@@ -38,7 +59,7 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
     });
   } catch (err) {
     if (err instanceof DOMException && err.name === "AbortError") throw err;
-    throw new Error("Impossible de contacter le serveur. Vérifie ta connexion (en local : « npm run dev » doit tourner).");
+    throw new ApiError("Impossible de contacter le serveur. Vérifie ta connexion internet.", 0, true);
   }
 
   let json: { erreur?: string; code?: string } | null = null;
@@ -51,17 +72,17 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
   // Site protégé par un code d'accès : on le demande, puis on réessaie.
   if (res.status === 401 && (json?.code === "CODE_REQUIS" || json?.code === "CODE_INVALIDE") && askCode && attempt < 3) {
     const entered = await askCode(json.code === "CODE_INVALIDE");
-    if (entered === null) throw new Error("Code d'accès requis pour utiliser Claude.");
+    if (entered === null) throw new ApiError("Code d'accès requis pour utiliser Claude.", 401, false);
     storeCode(entered.trim());
     return post<T>(url, body, signal, attempt + 1);
   }
 
   if (!res.ok || !json) {
-    if (json?.erreur) throw new Error(json.erreur);
+    if (json?.erreur) throw new ApiError(json.erreur, res.status, RETRYABLE.has(res.status));
     if (res.status >= 500) {
-      throw new Error("Le serveur n'a pas répondu à temps ou est arrêté. Réessaie (en local : vérifie que « npm run dev » tourne).");
+      throw new ApiError("Le serveur n'a pas répondu à temps. Réessaie dans un instant.", res.status, true);
     }
-    throw new Error(`Réponse inattendue du serveur (${res.status}).`);
+    throw new ApiError(`Réponse inattendue du serveur (${res.status}).`, res.status, false);
   }
   return json as T;
 }
@@ -74,7 +95,7 @@ export const appendToMap = (prompt: string, carte: AiMap, signal?: AbortSignal) 
 
 export const expandNode = (carte: AiMap, nodeId: string) => post<AiMap>("/api/expand", { carte, nodeId });
 
-export async function getHealth(): Promise<{ ok: boolean; modele: string; cleApi: boolean; codeRequis?: boolean } | null> {
+export async function getHealth(): Promise<Health | null> {
   try {
     const res = await fetch("/api/health");
     return res.ok ? await res.json() : null;

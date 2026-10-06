@@ -77,7 +77,7 @@ function Swatches({
   onPick: (c: string) => void;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-1.5 tap:gap-0.5">
       {colors.map((c) => (
         <button
           key={c}
@@ -87,17 +87,23 @@ function Swatches({
           onClick={() => onPick(c)}
           title={`${c} — clique pour appliquer, ou glisse sur un nœud`}
           aria-label={`Couleur ${c}`}
-          className={`h-6 w-6 cursor-grab rounded-full border border-black/10 shadow-sm transition hover:scale-115 active:cursor-grabbing dark:border-white/15 ${
-            current?.toLowerCase() === c ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-indigo-300 dark:ring-offset-slate-900" : ""
-          }`}
-          style={{ background: c }}
-        />
+          aria-pressed={current?.toLowerCase() === c}
+          className="group/sw flex h-6 w-6 cursor-grab items-center justify-center active:cursor-grabbing tap:h-11 tap:w-11"
+        >
+          <span
+            className={`block h-6 w-6 rounded-full border border-black/10 shadow-sm transition group-hover/sw:scale-115 tap:h-8 tap:w-8 dark:border-white/15 ${
+              current?.toLowerCase() === c ? "ring-2 ring-indigo-500 ring-offset-2 ring-offset-white dark:ring-indigo-300 dark:ring-offset-slate-900" : ""
+            }`}
+            style={{ background: c }}
+          />
+        </button>
       ))}
-      <label
-        title="Couleur libre"
-        className="relative flex h-6 w-6 cursor-pointer items-center justify-center overflow-hidden rounded-full border border-black/10 shadow-sm dark:border-white/15"
-        style={{ background: "conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #6366f1, #ec4899, #ef4444)" }}
-      >
+      <label title="Couleur libre" className="relative flex h-6 w-6 cursor-pointer items-center justify-center tap:h-11 tap:w-11">
+        <span
+          className="block h-6 w-6 rounded-full border border-black/10 shadow-sm tap:h-8 tap:w-8 dark:border-white/15"
+          style={{ background: "conic-gradient(#ef4444, #eab308, #22c55e, #06b6d4, #6366f1, #ec4899, #ef4444)" }}
+          aria-hidden="true"
+        />
         <input
           type="color"
           aria-label="Couleur libre"
@@ -117,7 +123,7 @@ function Toggle({ active, onClick, children, title }: { active: boolean; onClick
       title={title}
       aria-pressed={active}
       onClick={onClick}
-      className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2.5 text-sm transition active:scale-95 ${
+      className={`flex h-9 min-w-9 items-center justify-center rounded-lg border px-2.5 text-sm transition active:scale-95 tap:h-11 tap:min-w-11 ${
         active
           ? "border-indigo-500 bg-indigo-500/15 text-indigo-700 dark:border-indigo-400 dark:text-indigo-200"
           : "border-slate-200 text-slate-600 hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
@@ -138,6 +144,8 @@ export interface ToolboxProps {
   onEdgeStyle: (patch: Partial<MindEdgeData>) => void;
   onAddShape: (shape: Shape) => void;
   onNeedSelection: () => void;
+  /** « panel » : colonne de droite (ordinateur) ; « sheet » : panneau du bas (téléphone). */
+  variant?: "panel" | "sheet";
 }
 
 export function Toolbox({
@@ -149,7 +157,9 @@ export function Toolbox({
   onEdgeStyle,
   onAddShape,
   onNeedSelection,
+  variant = "panel",
 }: ToolboxProps) {
+  const sheet = variant === "sheet";
   const [customEmoji, setCustomEmoji] = useState("");
   const hasNodes = selectedNodeCount > 0;
   const styleNodes = (patch: Partial<MindNodeData>, key?: string) => (hasNodes ? onNodeStyle(patch, key) : onNeedSelection());
@@ -164,11 +174,13 @@ export function Toolbox({
           : "Aucune sélection";
 
   return (
-    <div className="mm-scroll h-full overflow-y-auto text-sm">
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-[#0f1320]/90">
-        <div className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">Boîte à outils</div>
-        <div className="mt-0.5 truncate font-medium text-slate-800 dark:text-slate-100">{selectionLabel}</div>
-      </div>
+    <div className={sheet ? "text-sm" : "mm-scroll h-full overflow-y-auto text-sm"}>
+      {!sheet && (
+        <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/90 px-4 py-3 backdrop-blur dark:border-slate-800 dark:bg-[#0f1320]/90">
+          <div className="text-[11px] font-semibold tracking-wider text-slate-500 uppercase dark:text-slate-400">Boîte à outils</div>
+          <div className="mt-0.5 truncate font-medium text-slate-800 dark:text-slate-100">{selectionLabel}</div>
+        </div>
+      )}
 
       <Section title="Formes">
         <div className="grid grid-cols-3 gap-2">
@@ -192,7 +204,9 @@ export function Toolbox({
           ))}
         </div>
         <p className="mt-2 text-xs text-slate-500 dark:text-slate-400">
-          Glisse un élément sur le canevas pour créer un nœud, ou sur un nœud pour le modifier.
+          {sheet
+            ? "Touche une forme pour l'appliquer au nœud sélectionné (ou pour créer un nœud si rien n'est sélectionné)."
+            : "Glisse un élément sur le canevas pour créer un nœud, ou sur un nœud pour le modifier."}
         </p>
       </Section>
 
@@ -215,7 +229,7 @@ export function Toolbox({
       </Section>
 
       <Section title="Emojis">
-        <div className="grid grid-cols-8 gap-0.5">
+        <div className="grid grid-cols-8 gap-0.5 tap:grid-cols-[repeat(auto-fill,minmax(44px,1fr))]">
           {EMOJIS.map((emoji) => (
             <button
               key={emoji}
@@ -223,7 +237,7 @@ export function Toolbox({
               draggable
               onDragStart={(e) => startDrag(e, { kind: "emoji", emoji })}
               onClick={() => styleNodes({ emoji })}
-              className={`flex h-8 w-8 cursor-grab items-center justify-center rounded-lg text-lg transition hover:scale-125 hover:bg-slate-100 active:cursor-grabbing dark:hover:bg-slate-800 ${
+              className={`flex h-8 w-8 cursor-grab items-center justify-center rounded-lg text-lg transition hover:scale-125 hover:bg-slate-100 active:cursor-grabbing tap:h-11 tap:w-full tap:text-xl dark:hover:bg-slate-800 ${
                 selection?.emoji === emoji ? "bg-indigo-500/15" : ""
               }`}
               aria-label={`Emoji ${emoji}`}
@@ -241,12 +255,13 @@ export function Toolbox({
             }}
             placeholder="Autre emoji…"
             maxLength={8}
-            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-transparent px-2.5 py-1.5 outline-none focus:border-indigo-500 dark:border-slate-700"
+            enterKeyHint="done"
+            className="min-w-0 flex-1 rounded-lg border border-slate-200 bg-transparent px-2.5 py-1.5 outline-none focus:border-indigo-500 tap:h-11 dark:border-slate-700"
           />
           <button
             type="button"
             onClick={() => styleNodes({ emoji: "" })}
-            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-slate-600 transition hover:bg-slate-100 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
+            className="rounded-lg border border-slate-200 px-2.5 py-1.5 text-slate-600 transition hover:bg-slate-100 tap:h-11 dark:border-slate-700 dark:text-slate-300 dark:hover:bg-slate-800"
           >
             Retirer
           </button>
@@ -279,7 +294,7 @@ export function Toolbox({
           value={selection?.fontSize ?? 15}
           disabled={!hasNodes}
           onChange={(e) => onNodeStyle({ fontSize: Number(e.target.value) }, "fontSize")}
-          className="mt-3 w-full accent-indigo-500 disabled:opacity-40"
+          className="mt-3 w-full accent-indigo-500 disabled:opacity-40 tap:h-11"
         />
       </Section>
 
@@ -290,7 +305,7 @@ export function Toolbox({
               key={p.value}
               type="button"
               onClick={() => onEdgeStyle({ path: p.value })}
-              className={`rounded-lg py-1.5 text-xs font-medium transition ${
+              className={`rounded-lg py-1.5 text-xs font-medium transition tap:min-h-11 ${
                 edgeStyle.path === p.value
                   ? "bg-white text-slate-900 shadow-sm dark:bg-slate-700 dark:text-white"
                   : "text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200"
@@ -300,7 +315,7 @@ export function Toolbox({
             </button>
           ))}
         </div>
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           <Toggle active={edgeStyle.dashed} title="Trait pointillé" onClick={() => onEdgeStyle({ dashed: !edgeStyle.dashed })}>
             <svg width="34" height="10" aria-hidden="true">
               <line x1="2" y1="5" x2="32" y2="5" stroke="currentColor" strokeWidth="2.5" strokeDasharray="5 4" />
@@ -322,15 +337,17 @@ export function Toolbox({
         </p>
       </Section>
 
+      {!sheet && (
       <Section title="Raccourcis">
         <ul className="space-y-1.5 text-xs text-slate-600 dark:text-slate-400">
           {[
-            ["Double-clic", "modifier le texte"],
             ["Tab", "ajouter un enfant"],
-            ["Entrée / F2", "modifier le nœud sélectionné"],
+            ["Entrée", "ajouter un frère"],
+            ["F2 / double-clic", "modifier le texte"],
             ["Suppr", "supprimer la sélection"],
             ["Ctrl + Z / Ctrl + Y", "annuler / rétablir"],
-            ["Clic droit", "développer avec Claude"],
+            ["Échap", "tout désélectionner"],
+            ["Clic droit", "menu (développer avec Claude…)"],
             ["Maj + glisser", "sélection multiple"],
           ].map(([k, v]) => (
             <li key={k} className="flex items-center gap-2">
@@ -343,6 +360,7 @@ export function Toolbox({
           ))}
         </ul>
       </Section>
+      )}
     </div>
   );
 }

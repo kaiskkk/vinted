@@ -1,6 +1,6 @@
 import { Handle, Position, type NodeProps } from "@xyflow/react";
 import { memo, useLayoutEffect, useRef, useState, type CSSProperties } from "react";
-import { LABEL_MAX_WIDTH, POSTIT_MIN, shapePadding } from "../lib/layout";
+import { LABEL_MAX_WIDTH, POSTIT_MIN, shapePadding } from "../lib/nodeSize";
 import type { MindNode, Shape } from "../types";
 import { useEditor } from "./editorContext";
 import { PlusIcon, Spinner } from "./Icons";
@@ -190,9 +190,13 @@ function MindNodeView({ id, data, selected, positionAbsoluteX }: NodeProps<MindN
         data-export="ignore"
         title="Ajouter une idée enfant (Tab)"
         aria-label="Ajouter un enfant"
-        className={`nodrag absolute top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 scale-75 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-white opacity-0 shadow-md transition hover:scale-110 hover:bg-indigo-400 group-hover:scale-100 group-hover:opacity-100 dark:border-[#0b0e17] ${
-          selected ? "scale-100 opacity-100" : ""
-        } ${onLeft ? "-left-3" : "-right-3"}`}
+        className={`nodrag absolute top-1/2 z-10 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full border-2 border-white bg-indigo-500 text-white shadow-md transition hover:scale-110 hover:bg-indigo-400 dark:border-[#0b0e17] ${
+          selected
+            ? // Sélectionné : toujours visible, plus gros au doigt.
+              `scale-100 opacity-100 pointer-coarse:h-9 pointer-coarse:w-9 ${onLeft ? "-left-3 pointer-coarse:-left-5" : "-right-3 pointer-coarse:-right-5"}`
+            : // Sinon : visible au survol de la souris seulement (pas de survol fiable au doigt).
+              `scale-75 opacity-0 group-hover:scale-100 group-hover:opacity-100 pointer-coarse:hidden ${onLeft ? "-left-3" : "-right-3"}`
+        }`}
         // Ne prend pas le focus : la touche Entrée ne doit pas « recliquer » ce bouton.
         tabIndex={-1}
         onMouseDown={(e) => e.preventDefault()}
@@ -202,7 +206,7 @@ function MindNodeView({ id, data, selected, positionAbsoluteX }: NodeProps<MindN
         }}
         onDoubleClick={(e) => e.stopPropagation()}
       >
-        <PlusIcon size={14} strokeWidth={3} />
+        <PlusIcon size={selected ? 16 : 14} strokeWidth={3} />
       </button>
 
       {data.loading && (

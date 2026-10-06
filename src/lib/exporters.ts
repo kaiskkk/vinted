@@ -1,5 +1,4 @@
 import type { Rect } from "@xyflow/react";
-import { toPng } from "html-to-image";
 import { sanitizeAiMap } from "../../shared/aiMap";
 import type { MindEdge, MindEdgeData, MindMap, MindNode } from "../types";
 import { layoutTree } from "./layout";
@@ -38,6 +37,7 @@ export async function exportPng(bounds: Rect, name: string, background: string) 
   const height = Math.ceil(bounds.height + padding * 2);
   // Limite la taille de l'image pour les très grandes cartes.
   const pixelRatio = Math.max(1, Math.min(2, 8000 / Math.max(width, height)));
+  const { toPng } = await import("html-to-image"); // chargé seulement au moment d'exporter
 
   const dataUrl = await toPng(viewport, {
     backgroundColor: background,

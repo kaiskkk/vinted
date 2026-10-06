@@ -5,3 +5,23 @@
 
 [build.environment]
   NODE_VERSION = "22"
+
+# Pas de redirection nécessaire : l'appli utilise des adresses en « #/… » (une seule page),
+# et l'API est servie par la fonction netlify/functions/api.ts (config.path).
+
+# Le service worker doit toujours être vérifié pour que les mises à jour arrivent.
+[[headers]]
+  for = "/sw.js"
+  [headers.values]
+    Cache-Control = "no-cache"
+
+# Fichiers versionnés par le build : on peut les garder en cache longtemps.
+[[headers]]
+  for = "/assets/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/manifest.webmanifest"
+  [headers.values]
+    Content-Type = "application/manifest+json; charset=utf-8"
