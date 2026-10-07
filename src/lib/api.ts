@@ -81,7 +81,11 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
   if (!res.ok || !json) {
     if (json?.erreur) throw new ApiError(json.erreur, res.status, RETRYABLE.has(res.status));
     if (res.status >= 500) {
-      throw new ApiError("Le serveur n'a pas répondu à temps. Réessaie dans un instant.", res.status, true);
+      throw new ApiError(
+        `Le serveur n'a pas répondu à temps (erreur ${res.status}). Réessaie, ou fais une demande plus courte (moins de questions, cours plus court).`,
+        res.status,
+        true,
+      );
     }
     throw new ApiError(`Réponse inattendue du serveur (${res.status}).`, res.status, false);
   }

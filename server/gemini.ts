@@ -19,8 +19,8 @@ import {
   type StudyAI,
 } from "./study";
 
-/** Modèle « Flash » le plus récent : le seul type de modèle inclus dans l'offre gratuite. */
-export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
+/** Modèle « Flash-Lite » le plus récent : gratuit et le plus rapide (le site en ligne doit répondre en moins de 30 s). */
+export const DEFAULT_GEMINI_MODEL = "gemini-flash-lite-latest";
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
 // GEMINIE : nom choisi sur le site en ligne, accepté aussi.
@@ -121,20 +121,28 @@ function httpError(status: number, message: string): UserFacingError {
 }
 
 /** Modèles gratuits essayés ensuite si le premier est surchargé, à sa limite ou introuvable (chacun a son propre quota). */
-export const FALLBACK_MODELS = ["gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+export const FALLBACK_MODELS = ["gemini-2.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"];
 
 interface Attempt {
   model: string;
   /** Réponse guidée par le schéma JSON (sinon le schéma est seulement décrit dans la consigne). */
   strict: boolean;
+  /** Réflexion réduite au minimum, pour répondre vite. */
+  fast: boolean;
 }
+
+/**
+ * Réflexion au minimum : les modèles 2.5 se règlent avec un budget, les plus récents (3.x, alias « latest »)
+ * avec un niveau. Si un modèle refuse ce réglage, l'essai suivant se fait sans.
+ */
+export const thinkingFor = (model: string) => (/2\.5/.test(model) ? { thinkingBudget: 0 } : { thinkingLevel: "low" });
 
 /** Ordre des essais : le modèle choisi, puis les modèles de secours, puis sans schéma imposé. */
 export function attemptPlan(withSchema: boolean): Attempt[] {
   const models = [...new Set([geminiModel(), ...FALLBACK_MODELS])];
-  const plan = models.map((model) => ({ model, strict: withSchema }));
+  const plan: Attempt[] = models.map((model) => ({ model, strict: withSchema, fast: true }));
   // Certaines erreurs internes de Google viennent du schéma : dernier essai en JSON libre.
-  if (withSchema) plan.push({ model: models[0], strict: false });
+  if (withSchema) plan.push({ model: models[0], strict: false, fast: true });
   return plan;
 }
 
@@ -161,6 +169,7 @@ export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {
         maxOutputTokens: req.maxOutputTokens,
         ...(req.schema ? { responseMimeType: "application/json" } : {}),
         ...(req.schema && a.strict ? { responseSchema: req.schema } : {}),
+        ...(a.fast ? { thinkingConfig: thinkingFor(a.model) } : {}),
       },
     });
     const controller = new AbortController();
@@ -196,7 +205,9 @@ export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {
     const deadline = Date.now() + timeoutMs;
     const errors: AttemptError[] = [];
 
-    for (const a of attemptPlan(Boolean(req.schema))) {
+    const plan = attemptPlan(Boolean(req.schema));
+    for (let i = 0; i < plan.length; i++) {
+      const a = plan[i];
       const remaining = deadline - Date.now();
       // Pas assez de temps pour un nouvel essai : on s'arrête avec un message clair.
       if (errors.length > 0 && remaining < 8_000) break;
@@ -207,6 +218,11 @@ export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {
         if (!(err instanceof AttemptError)) throw err;
         console.warn(`[gemini] ${a.model}${a.strict ? "" : " (sans schéma)"} : ${err.status} ${err.message}`);
         errors.push(err);
+        // Réglage de réflexion inconnu de ce modèle : on le réessaie aussitôt sans ce réglage.
+        if (err.status === 400 && a.fast && /think/i.test(err.message)) {
+          plan.splice(i + 1, 0, { ...a, fast: false });
+          continue;
+        }
         if (!RETRYABLE(err.status)) throw httpError(err.status, err.message);
         continue;
       }

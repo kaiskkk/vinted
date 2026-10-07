@@ -94,7 +94,7 @@ Bon à savoir :
 - Si tu ajoutes ou modifies une variable après coup, relance un déploiement (*Deploys → Trigger deploy → Deploy site*) pour qu'elle soit prise en compte.
 - À chaque modification du code sur GitHub, Netlify republie le site automatiquement.
 - Les cartes sont enregistrées **dans le navigateur, séparément pour chaque adresse** : celles créées sur `localhost` n'apparaissent pas sur `netlify.app`. Pour les transférer, utilise *Exporter → Fichier JSON* sur l'une, puis *Importer un fichier JSON* sur l'autre.
-- Netlify coupe une fonction au bout de 60 secondes : une génération est donc limitée à environ 50 secondes en ligne. C'est largement suffisant avec `CLAUDE_EFFORT=low` (valeur par défaut).
+- Netlify coupe une fonction au bout d'environ 30 secondes : une génération est donc limitée à 25 secondes en ligne. Pour les gros quiz ou les longs cours, demande moins de questions ou découpe le cours.
 
 ## IA gratuite avec Gemini
 
@@ -110,7 +110,7 @@ Bon à savoir :
 - **Dès que `CLE_GEMINI` existe, le site utilise Gemini** ; sans elle, il utilise Claude. Pour revenir à Claude, supprime simplement la variable.
 - L'offre gratuite est **limitée** (un nombre de demandes par minute et par jour, qui change selon Google) : en cas de dépassement, le site affiche « Limite gratuite de l'IA atteinte » et ça repart un peu plus tard.
 - Sur l'offre gratuite, **Google peut utiliser tes demandes pour améliorer ses produits** : n'y mets pas d'informations personnelles.
-- `MODELE_GEMINI` (facultatif) change de modèle, par exemple `gemini-flash-lite-latest` (plus rapide, limites plus larges). Par défaut : `gemini-flash-latest`.
+- Par défaut, le site utilise `gemini-flash-lite-latest`, le modèle gratuit le plus rapide, avec la réflexion réduite au minimum. S'il est surchargé ou à sa limite, il essaie automatiquement d'autres modèles gratuits (chacun a son propre quota). `MODELE_GEMINI` (facultatif) choisit un autre modèle à essayer en premier, par exemple `gemini-flash-latest` (plus réfléchi, plus lent).
 - Sans aucune clé, Netlify fournit lui-même Claude grâce à son **AI Gateway**, payé avec les **crédits** de ton compte Netlify : sur l'offre gratuite, quand les crédits sont épuisés, tous tes sites sont mis en pause jusqu'au mois suivant (sans rien te facturer). Avec `CLE_GEMINI`, l'IA ne consomme plus ces crédits.
 
 ## Installer l'appli sur ton téléphone (PWA)
@@ -203,7 +203,7 @@ Pendant que tu écris dans un nœud, la carte se décale pour que le texte reste
 | Variable | Obligatoire | Description |
 |---|---|---|
 | `CLE_GEMINI` | Non | Clé Google Gemini **gratuite** : si elle est définie, l'IA utilise Gemini au lieu de Claude |
-| `MODELE_GEMINI` | Non | Modèle Gemini (`gemini-flash-latest` par défaut) |
+| `MODELE_GEMINI` | Non | Modèle Gemini essayé en premier (`gemini-flash-lite-latest` par défaut) |
 | `ANTHROPIC_API_KEY` | Non | Ta clé API Anthropic (payante), utilisée quand `CLE_GEMINI` est vide |
 | `PORT` | Non | Port du serveur Express (3001 par défaut ; si tu le changes, adapte le proxy dans `vite.config.ts`) |
 | `CLAUDE_EFFORT` | Non | `low` (par défaut, le plus rapide), `medium` ou `high` (plus réfléchi, plus lent et plus coûteux) |

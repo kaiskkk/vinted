@@ -42,12 +42,14 @@ describe("Gemini (IA gratuite)", () => {
     const raw = await study.etude({ type: "fiche", sujet: "Les volcans", niveau: "college" });
     expect(raw).toMatchObject({ titre: "Volcans" });
     const call = calls[0];
-    expect(call.url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent");
+    expect(call.url).toBe("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-lite-latest:generateContent");
     expect((call.init.headers as Record<string, string>)["x-goog-api-key"]).toBe("cle-test");
     expect(call.url).not.toContain("cle-test");
     const config = call.body.generationConfig as Record<string, unknown>;
     expect(config.responseMimeType).toBe("application/json");
     expect((config.responseSchema as { type: string }).type).toBe("OBJECT");
+    // Réflexion au minimum pour répondre vite.
+    expect(config.thinkingConfig).toEqual({ thinkingLevel: "low" });
     expect(JSON.stringify(call.body.systemInstruction)).toContain("collège");
     expect(JSON.stringify(call.body.contents)).toContain("Les volcans");
   });
@@ -114,7 +116,7 @@ describe("Gemini (IA gratuite)", () => {
   it("limite atteinte sur un modèle : bascule sur un autre", async () => {
     const { fn, calls } = fakeFetch([{ status: 429, json: { error: { message: "quota" } } }, { json: answer('{"titre":"T","noeuds":[]}') }]);
     expect(await createGeminiProvider({}, fn).generator.generate({ mode: "replace", prompt: "x" })).toEqual({ titre: "T", noeuds: [] });
-    expect(calls.map((c) => c.url.split("/").pop())).toEqual(["gemini-flash-latest:generateContent", "gemini-flash-lite-latest:generateContent"]);
+    expect(calls.map((c) => c.url.split("/").pop())).toEqual(["gemini-flash-lite-latest:generateContent", "gemini-2.5-flash-lite:generateContent"]);
   });
 
   it("dernier essai sans schéma imposé, avec le schéma dans la consigne", async () => {
@@ -126,7 +128,17 @@ describe("Gemini (IA gratuite)", () => {
     expect(last.generationConfig).not.toHaveProperty("responseSchema");
     expect(last.generationConfig).toHaveProperty("responseMimeType", "application/json");
     expect(JSON.stringify(last.systemInstruction)).toContain("respecte ce schéma");
-    expect(calls[4].url).toContain("/gemini-flash-latest:");
+    expect(calls[4].url).toContain("/gemini-flash-lite-latest:");
+  });
+
+  it("réessaie sans réglage de réflexion si le modèle le refuse", async () => {
+    const { fn, calls } = fakeFetch([
+      { status: 400, json: { error: { message: "Thinking level is not supported for this model." } } },
+      { json: answer('{"explication": "Ok"}') },
+    ]);
+    expect(await createGeminiProvider({}, fn).study.simplifier({ texte: "x" })).toBe("Ok");
+    expect(calls[1].url).toBe(calls[0].url);
+    expect(calls[1].body.generationConfig).not.toHaveProperty("thinkingConfig");
   });
 
   it("lit un JSON entouré de balises de code", () => {
@@ -136,7 +148,7 @@ describe("Gemini (IA gratuite)", () => {
 
   it("choisit Gemini seulement quand CLE_GEMINI existe", () => {
     const ai = createAI();
-    expect(ai.modelName()).toBe("gemini-flash-latest");
+    expect(ai.modelName()).toBe("gemini-flash-lite-latest");
     expect(ai.hasApiKey()).toBe(true);
     process.env.MODELE_GEMINI = "gemini-2.5-flash-lite";
     expect(ai.modelName()).toBe("gemini-2.5-flash-lite");
