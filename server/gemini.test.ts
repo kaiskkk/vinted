@@ -88,7 +88,7 @@ describe("Gemini (IA gratuite)", () => {
     ];
     for (const [status, message, expected, text] of cases) {
       const { fn } = fakeFetch([{ status, json: { error: { code: status, message } } }]);
-      await expect(createGeminiProvider({ maxRetries: 0 }, fn).study.simplifier({ texte: "x" })).rejects.toMatchObject({
+      await expect(createGeminiProvider({}, fn).study.simplifier({ texte: "x" })).rejects.toMatchObject({
         status: expected,
         message: expect.stringMatching(text),
       });
@@ -109,6 +109,24 @@ describe("Gemini (IA gratuite)", () => {
     ]);
     expect(await createGeminiProvider({ maxRetries: 1 }, panne).study.simplifier({ texte: "x" })).toBe("Plus simple.");
     expect(calls).toHaveLength(2);
+  });
+
+  it("limite atteinte sur un modèle : bascule sur un autre", async () => {
+    const { fn, calls } = fakeFetch([{ status: 429, json: { error: { message: "quota" } } }, { json: answer('{"titre":"T","noeuds":[]}') }]);
+    expect(await createGeminiProvider({}, fn).generator.generate({ mode: "replace", prompt: "x" })).toEqual({ titre: "T", noeuds: [] });
+    expect(calls.map((c) => c.url.split("/").pop())).toEqual(["gemini-flash-latest:generateContent", "gemini-flash-lite-latest:generateContent"]);
+  });
+
+  it("dernier essai sans schéma imposé, avec le schéma dans la consigne", async () => {
+    const erreurs = Array.from({ length: 4 }, () => ({ status: 500, json: { error: { message: "Internal error" } } }));
+    const { fn, calls } = fakeFetch([...erreurs, { json: answer('{"explication": "Ok"}') }]);
+    expect(await createGeminiProvider({}, fn).study.simplifier({ texte: "x" })).toBe("Ok");
+    expect(calls).toHaveLength(5);
+    const last = calls[4].body;
+    expect(last.generationConfig).not.toHaveProperty("responseSchema");
+    expect(last.generationConfig).toHaveProperty("responseMimeType", "application/json");
+    expect(JSON.stringify(last.systemInstruction)).toContain("respecte ce schéma");
+    expect(calls[4].url).toContain("/gemini-flash-latest:");
   });
 
   it("lit un JSON entouré de balises de code", () => {

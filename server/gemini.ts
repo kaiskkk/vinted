@@ -120,50 +120,97 @@ function httpError(status: number, message: string): UserFacingError {
   return new UserFacingError(`L'IA de Google a refusé la requête (${status}) : ${message}`, 502);
 }
 
-export function createGeminiClient({ timeoutMs = 120_000, maxRetries = 1 }: GeneratorOptions = {}, fetchImpl: typeof fetch = fetch) {
-  return async function call(req: GeminiRequest, tooLong: string): Promise<string> {
-    const key = geminiKey();
-    if (!key) throw new UserFacingError("Clé Gemini manquante : ajoute la variable CLE_GEMINI.", 500);
+/** Modèles gratuits essayés ensuite si le premier est surchargé, à sa limite ou introuvable (chacun a son propre quota). */
+export const FALLBACK_MODELS = ["gemini-flash-lite-latest", "gemini-2.5-flash", "gemini-2.5-flash-lite"];
+
+interface Attempt {
+  model: string;
+  /** Réponse guidée par le schéma JSON (sinon le schéma est seulement décrit dans la consigne). */
+  strict: boolean;
+}
+
+/** Ordre des essais : le modèle choisi, puis les modèles de secours, puis sans schéma imposé. */
+export function attemptPlan(withSchema: boolean): Attempt[] {
+  const models = [...new Set([geminiModel(), ...FALLBACK_MODELS])];
+  const plan = models.map((model) => ({ model, strict: withSchema }));
+  // Certaines erreurs internes de Google viennent du schéma : dernier essai en JSON libre.
+  if (withSchema) plan.push({ model: models[0], strict: false });
+  return plan;
+}
+
+class AttemptError extends Error {
+  constructor(
+    public status: number,
+    message: string,
+  ) {
+    super(message);
+  }
+}
+const RETRYABLE = (status: number) => status === 404 || status === 429 || status >= 500 || status === 0;
+
+export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {}, fetchImpl: typeof fetch = fetch) {
+  async function attempt(key: string, req: GeminiRequest, a: Attempt, remainingMs: number) {
+    const system =
+      a.strict || !req.schema
+        ? req.system
+        : `${req.system}\n\nRéponds uniquement avec un objet JSON valide qui respecte ce schéma :\n${JSON.stringify(req.schema)}`;
     const body = JSON.stringify({
-      systemInstruction: { parts: [{ text: req.system }] },
+      systemInstruction: { parts: [{ text: system }] },
       contents: req.contents,
       generationConfig: {
         maxOutputTokens: req.maxOutputTokens,
-        ...(req.schema ? { responseMimeType: "application/json", responseSchema: req.schema } : {}),
+        ...(req.schema ? { responseMimeType: "application/json" } : {}),
+        ...(req.schema && a.strict ? { responseSchema: req.schema } : {}),
       },
     });
-
-    for (let attempt = 0; ; attempt++) {
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort(), timeoutMs);
-      let res: Response;
-      try {
-        res = await fetchImpl(`${API_URL}/${encodeURIComponent(geminiModel())}:generateContent`, {
-          method: "POST",
-          headers: { "content-type": "application/json", "x-goog-api-key": key },
-          body,
-          signal: controller.signal,
-        });
-      } catch (err) {
-        if (controller.signal.aborted) {
-          throw new UserFacingError("L'IA a mis trop de temps à répondre. Réessaie, ou fais une demande plus courte.", 504);
-        }
-        if (attempt < maxRetries) continue;
-        throw new UserFacingError(`Impossible de joindre l'IA de Google (${err instanceof Error ? err.message : "réseau"}).`, 502);
-      } finally {
-        clearTimeout(timer);
-      }
-
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), remainingMs);
+    try {
+      const res = await fetchImpl(`${API_URL}/${encodeURIComponent(a.model)}:generateContent`, {
+        method: "POST",
+        headers: { "content-type": "application/json", "x-goog-api-key": key },
+        body,
+        signal: controller.signal,
+      });
       const json = (await res.json().catch(() => null)) as {
         error?: { message?: string };
         promptFeedback?: { blockReason?: string };
         candidates?: { finishReason?: string; content?: { parts?: Part[] } }[];
       } | null;
-
-      if (!res.ok) {
-        if (res.status >= 500 && attempt < maxRetries) continue;
-        throw httpError(res.status, json?.error?.message ?? res.statusText);
+      if (!res.ok) throw new AttemptError(res.status, json?.error?.message ?? res.statusText);
+      return json;
+    } catch (err) {
+      if (err instanceof AttemptError) throw err;
+      if (controller.signal.aborted) {
+        throw new UserFacingError("L'IA a mis trop de temps à répondre. Réessaie, ou fais une demande plus courte.", 504);
       }
+      throw new AttemptError(0, err instanceof Error ? err.message : "réseau");
+    } finally {
+      clearTimeout(timer);
+    }
+  }
+
+  return async function call(req: GeminiRequest, tooLong: string): Promise<string> {
+    const key = geminiKey();
+    if (!key) throw new UserFacingError("Clé Gemini manquante : ajoute la variable CLE_GEMINI.", 500);
+    const deadline = Date.now() + timeoutMs;
+    const errors: AttemptError[] = [];
+
+    for (const a of attemptPlan(Boolean(req.schema))) {
+      const remaining = deadline - Date.now();
+      // Pas assez de temps pour un nouvel essai : on s'arrête avec un message clair.
+      if (errors.length > 0 && remaining < 8_000) break;
+      let json;
+      try {
+        json = await attempt(key, req, a, remaining);
+      } catch (err) {
+        if (!(err instanceof AttemptError)) throw err;
+        console.warn(`[gemini] ${a.model}${a.strict ? "" : " (sans schéma)"} : ${err.status} ${err.message}`);
+        errors.push(err);
+        if (!RETRYABLE(err.status)) throw httpError(err.status, err.message);
+        continue;
+      }
+
       if (json?.promptFeedback?.blockReason) {
         throw new UserFacingError("L'IA a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
       }
@@ -188,6 +235,19 @@ export function createGeminiClient({ timeoutMs = 120_000, maxRetries = 1 }: Gene
       }
       return text;
     }
+
+    // Tous les essais ont échoué : le message dépend de la cause la plus parlante.
+    if (errors.length && errors.every((e) => e.status === 429)) throw httpError(429, errors[0].message);
+    const last = errors.find((e) => e.status >= 500) ?? errors.find((e) => e.status === 429) ?? errors.at(-1);
+    if (!last) throw new UserFacingError("L'IA a mis trop de temps à répondre. Réessaie dans un instant.", 504);
+    if (last.status === 0) throw new UserFacingError(`Impossible de joindre l'IA de Google (${last.message}).`, 502);
+    if (last.status >= 500) {
+      throw new UserFacingError(
+        `L'IA de Google est surchargée en ce moment (plusieurs modèles gratuits essayés). Réessaie dans quelques minutes. Détail : ${last.message.slice(0, 160)}`,
+        503,
+      );
+    }
+    throw httpError(last.status, last.message);
   };
 }
 
