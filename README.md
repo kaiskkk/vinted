@@ -102,7 +102,7 @@ Le site sait utiliser **Google Gemini** à la place de Claude, avec l'offre grat
 
 1. Va sur <https://aistudio.google.com/apikey> et connecte-toi avec un compte Google. Les conditions de Google demandent d'être **majeur** : si tu ne l'es pas, demande à un parent de créer la clé.
 2. Clique sur **Create API key** et copie la clé (elle commence par `AIza`).
-3. Sur Netlify : *Project configuration → Environment variables → Add a variable*, nom **`CLE_GEMINI`**, valeur : ta clé. (En local : `CLE_GEMINI=...` dans `.env`.)
+3. Sur Netlify : *Project configuration → Environment variables → Add a variable*, nom **`CLE_GEMINI`**, valeur : ta clé (le nom `GEMINIE` est aussi accepté). En local : `CLE_GEMINI=...` dans `.env`.
 4. Relance un déploiement (*Deploys → Trigger deploy → Deploy site*), ou attends la prochaine mise à jour du site.
 
 Bon à savoir :

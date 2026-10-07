@@ -124,5 +124,8 @@ describe("Gemini (IA gratuite)", () => {
     expect(ai.modelName()).toBe("gemini-2.5-flash-lite");
     delete process.env.CLE_GEMINI;
     expect(ai.modelName()).toBe("claude-sonnet-5-5");
+    process.env.GEMINIE = "cle-test";
+    expect(ai.modelName()).toBe("gemini-2.5-flash-lite");
+    delete process.env.GEMINIE;
   });
 });

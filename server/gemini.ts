@@ -23,7 +23,8 @@ import {
 export const DEFAULT_GEMINI_MODEL = "gemini-flash-latest";
 const API_URL = "https://generativelanguage.googleapis.com/v1beta/models";
 
-export const geminiKey = () => process.env.CLE_GEMINI?.trim() || "";
+// GEMINIE : nom choisi sur le site en ligne, accepté aussi.
+export const geminiKey = () => process.env.CLE_GEMINI?.trim() || process.env.GEMINIE?.trim() || "";
 export const geminiModel = () => process.env.MODELE_GEMINI?.trim() || DEFAULT_GEMINI_MODEL;
 
 // ---------- Schéma JSON → format attendu par Gemini ----------
