@@ -160,18 +160,20 @@ export interface ApiOptions {
   /** Outils d'étude (fiches, quiz…) ; absents, leurs routes répondent 503. */
   study?: StudyAI;
   hasApiKey: () => boolean;
+  /** Nom du modèle utilisé (affiché par /api/health). */
+  modelName?: () => string;
   /** Code exigé pour utiliser Claude (variable CODE_ACCES) ; aucun contrôle s'il est vide. */
   accessCode?: () => string | undefined;
   log?: (message: string) => void;
 }
 
-export function createApi({ generator, study, hasApiKey, accessCode = () => undefined, log = () => {} }: ApiOptions) {
+export function createApi({ generator, study, hasApiKey, modelName = () => MODEL, accessCode = () => undefined, log = () => {} }: ApiOptions) {
   /** Renvoie une réponse d'erreur si le code d'accès est absent ou faux, sinon null. */
   function checkAccess(provided: string | undefined | null): ApiResponse | null {
     const expected = accessCode();
     if (!expected) return null;
     if (!provided) {
-      return { status: 401, body: { erreur: "Ce site est protégé : entre le code d'accès pour utiliser Claude.", code: "CODE_REQUIS" } };
+      return { status: 401, body: { erreur: "Ce site est protégé : entre le code d'accès pour utiliser l'IA.", code: "CODE_REQUIS" } };
     }
     if (!timingSafeEqual(digest(provided), digest(expected))) {
       return { status: 401, body: { erreur: "Code d'accès incorrect.", code: "CODE_INVALIDE" } };
@@ -195,13 +197,13 @@ export function createApi({ generator, study, hasApiKey, accessCode = () => unde
         });
       }
       if (result.noeuds.length === 0) {
-        throw new UserFacingError("Claude n'a proposé aucune idée exploitable. Reformule ta demande.", 502);
+        throw new UserFacingError("L'IA n'a proposé aucune idée exploitable. Reformule ta demande.", 502);
       }
-      log(`[claude] ${input.mode} : ${result.noeuds.length} nœuds en ${Date.now() - started} ms`);
+      log(`[ia] ${input.mode} : ${result.noeuds.length} nœuds en ${Date.now() - started} ms`);
       return { status: 200, body: result };
     } catch (err) {
       const userError = toUserError(err);
-      log(`[claude] ${input.mode} : échec (${userError.status}) ${userError.message}`);
+      log(`[ia] ${input.mode} : échec (${userError.status}) ${userError.message}`);
       return { status: userError.status, body: { erreur: userError.message } };
     }
   }
@@ -222,18 +224,18 @@ export function createApi({ generator, study, hasApiKey, accessCode = () => unde
     const started = Date.now();
     try {
       const result = await work(parsed.data, study);
-      log(`[claude] ${name} : réussi en ${Date.now() - started} ms`);
+      log(`[ia] ${name} : réussi en ${Date.now() - started} ms`);
       return { status: 200, body: result };
     } catch (err) {
       const userError = toUserError(err);
-      log(`[claude] ${name} : échec (${userError.status}) ${userError.message}`);
+      log(`[ia] ${name} : échec (${userError.status}) ${userError.message}`);
       return { status: userError.status, body: { erreur: userError.message } };
     }
   }
 
   return {
     health(): ApiResponse {
-      return { status: 200, body: { ok: true, modele: MODEL, cleApi: hasApiKey(), codeRequis: Boolean(accessCode()) } };
+      return { status: 200, body: { ok: true, modele: modelName(), cleApi: hasApiKey(), codeRequis: Boolean(accessCode()) } };
     },
 
     async generate(body: unknown, code?: string | null): Promise<ApiResponse> {
@@ -261,7 +263,7 @@ export function createApi({ generator, study, hasApiKey, accessCode = () => unde
         const raw = await ai.etude(input);
         const doc = limitCount(input.type, sanitizeEtude(input.type, raw), input.nombre);
         if (!isUsable(input.type, doc)) {
-          throw new UserFacingError("Claude n'a rien produit d'exploitable. Réessaie, ou ajoute plus de contenu au cours.", 502);
+          throw new UserFacingError("L'IA n'a rien produit d'exploitable. Réessaie, ou ajoute plus de contenu au cours.", 502);
         }
         return doc;
       }),

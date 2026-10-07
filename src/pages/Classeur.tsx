@@ -44,12 +44,12 @@ import { PlanningForm } from "./ModePage";
 type Action = "carte" | TypeEtude;
 
 const ACTIONS: { action: Action; titre: string; detail: string; loading: string }[] = [
-  { action: "carte", titre: "Carte mentale", detail: "Toutes les idées en branches", loading: "Claude dessine ta carte mentale…" },
-  { action: "fiche", titre: "Fiche de cours", detail: "Notions, définitions, exemples", loading: "Claude prépare ta fiche…" },
-  { action: "revision", titre: "Fiche de révision", detail: "L'essentiel et le top 10", loading: "Claude condense ton cours…" },
-  { action: "quiz", titre: "Quiz", detail: "QCM corrigés et expliqués", loading: "Claude prépare ton quiz…" },
-  { action: "flashcards", titre: "Flashcards", detail: "Recto / verso à mémoriser", loading: "Claude prépare tes flashcards…" },
-  { action: "resume", titre: "Résumé", detail: "Le cours en quelques paragraphes", loading: "Claude résume ton cours…" },
+  { action: "carte", titre: "Carte mentale", detail: "Toutes les idées en branches", loading: "L'IA dessine ta carte mentale…" },
+  { action: "fiche", titre: "Fiche de cours", detail: "Notions, définitions, exemples", loading: "L'IA prépare ta fiche…" },
+  { action: "revision", titre: "Fiche de révision", detail: "L'essentiel et le top 10", loading: "L'IA condense ton cours…" },
+  { action: "quiz", titre: "Quiz", detail: "QCM corrigés et expliqués", loading: "L'IA prépare ton quiz…" },
+  { action: "flashcards", titre: "Flashcards", detail: "Recto / verso à mémoriser", loading: "L'IA prépare tes flashcards…" },
+  { action: "resume", titre: "Résumé", detail: "Le cours en quelques paragraphes", loading: "L'IA résume ton cours…" },
 ];
 const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   carte: "carte",
@@ -248,7 +248,7 @@ function ClasseurView({ classeur, setClasseur }: { classeur: Classeur; setClasse
               </h2>
               {items.length === 0 ? (
                 <p className="rounded-2xl border border-dashed border-slate-300 px-5 py-8 text-center text-sm text-slate-500 dark:border-slate-700 dark:text-slate-400">
-                  Rien pour l'instant : choisis ci-dessus ce que Claude doit préparer.
+                  Rien pour l'instant : choisis ci-dessus ce que l'IA doit préparer.
                 </p>
               ) : (
                 <DocList items={items} onChange={refresh} />
@@ -342,7 +342,7 @@ function GenerateOptions({
           onClick={() => onGenerate(action, quiz ? { nombre, difficulte } : { nombre })}
           className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r font-semibold text-white shadow-lg transition hover:brightness-110 active:scale-[0.98] ${KIND_LOOK[action].gradient}`}
         >
-          Générer avec Claude
+          Générer avec l'IA
         </button>
       </div>
     </BottomSheet>
@@ -419,7 +419,7 @@ function ChatPanel({ classeur, save }: { classeur: Classeur; save: (c: Classeur)
           <h2 id="chat" className="font-semibold">
             Questions sur le cours
           </h2>
-          <p className="truncate text-xs text-slate-500 dark:text-slate-400">Claude répond à partir de ton cours</p>
+          <p className="truncate text-xs text-slate-500 dark:text-slate-400">L'IA répond à partir de ton cours</p>
         </div>
         {messages.length > 0 && (
           <button
@@ -457,7 +457,7 @@ function ChatPanel({ classeur, save }: { classeur: Classeur; save: (c: Classeur)
         ))}
         {pending && (
           <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
-            <Spinner /> Claude réfléchit…
+            <Spinner /> L'IA réfléchit…
           </div>
         )}
       </div>

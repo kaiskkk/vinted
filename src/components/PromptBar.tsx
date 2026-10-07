@@ -115,7 +115,7 @@ export function PromptBar({ loading, onGenerate, onCancel, variant }: PromptBarP
             className="inline-flex h-10 shrink-0 items-center gap-2 rounded-xl bg-slate-200 px-3 text-sm font-medium text-slate-700 transition hover:bg-slate-300 tap:h-11 dark:bg-slate-700 dark:text-slate-100 dark:hover:bg-slate-600"
           >
             <Spinner />
-            <span>{compact ? "Annuler" : "Claude réfléchit…"}</span>
+            <span>{compact ? "Annuler" : "L'IA réfléchit…"}</span>
             {!compact && <XIcon size={14} className="opacity-60" />}
           </button>
         ) : (

@@ -150,8 +150,8 @@ export default function General() {
             {info.icon(28)}
           </span>
           <p className="text-balance text-slate-600 dark:text-slate-300">
-            Ajoute ton cours une seule fois : Claude en tire une carte mentale, une fiche, une fiche de révision, un quiz, des flashcards et un
-            résumé. Tout est rangé dans un classeur, avec une discussion pour poser tes questions.
+            Ajoute ton cours une seule fois : l'IA en tire une carte mentale, une fiche, une fiche de révision, un quiz, des flashcards et un résumé.
+            Tout est rangé dans un classeur, avec une discussion pour poser tes questions.
           </p>
         </section>
 

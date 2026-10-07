@@ -37,12 +37,12 @@ const NoeudSchema = z.object({
   emoji: z.string().describe('Un seul emoji pertinent, ou "" si aucun ne convient'),
 });
 
-const CarteSchema = z.object({
+export const CarteSchema = z.object({
   titre: z.string().describe("Titre court de la carte"),
   noeuds: z.array(NoeudSchema),
 });
 
-const SYSTEM_PROMPT = `Tu es un expert en cartes mentales. Tu produis des cartes claires, concrètes, utiles et bien équilibrées, que l'utilisateur pourra ensuite retravailler à la main.
+export const SYSTEM_PROMPT = `Tu es un expert en cartes mentales. Tu produis des cartes claires, concrètes, utiles et bien équilibrées, que l'utilisateur pourra ensuite retravailler à la main.
 
 Contenu :
 - Écris dans la langue de la demande (français par défaut).
@@ -151,7 +151,7 @@ export function clientFactory({ timeoutMs = 120_000, maxRetries = 2 }: Generator
   return (): Anthropic => {
     if (!hasCredentials()) {
       throw new UserFacingError(
-        "Clé API manquante : ajoute ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne), puis relance ou redéploie.",
+        "Clé API manquante : ajoute CLE_GEMINI (gratuite, voir le README) ou ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne), puis relance ou redéploie.",
         500,
       );
     }

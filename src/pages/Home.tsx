@@ -288,7 +288,7 @@ export default function Home() {
             <div className="animate-fade-in rounded-3xl border border-dashed border-slate-300 bg-white/50 px-6 py-10 text-center dark:border-slate-700 dark:bg-slate-900/40">
               <p className="text-lg font-semibold text-slate-800 dark:text-slate-100">Rien ici pour l'instant</p>
               <p className="mx-auto mt-1 max-w-sm text-sm text-slate-500 dark:text-slate-400">
-                Commence par le mode <strong>Général</strong> : ajoute ton cours, et Claude prépare fiches, quiz et flashcards.
+                Commence par le mode <strong>Général</strong> : ajoute ton cours, et l'IA prépare fiches, quiz et flashcards.
               </p>
               <button type="button" onClick={() => openMode("general")} className={`${btn.primary} mt-6`}>
                 <PlusIcon size={16} strokeWidth={2.5} /> Ajouter un cours

@@ -96,9 +96,9 @@ const ResumeSchema = z.object({
   conclusion: z.string(),
 });
 
-const SimplifierSchema = z.object({ explication: z.string() });
+export const SimplifierSchema = z.object({ explication: z.string() });
 
-const SCHEMAS = {
+export const SCHEMAS = {
   fiche: FicheSchema,
   revision: RevisionSchema,
   quiz: QuizSchema,
@@ -201,8 +201,31 @@ Entre 8 et 20 blocs au total. Chaque contenu est court : 1 à 4 phrases ou une p
   }
 }
 
+/** Contexte de la discussion : le cours, puis la façon de répondre. */
+export function chatContext(input: Source): string {
+  return `${sourceBlock(input)}
+
+Tu réponds aux questions de l'élève sur ce cours. Réponds de façon claire et directe, en quelques phrases ou une courte liste. Si la question sort du cours, dis-le en une phrase puis réponds quand même si tu le peux. Si l'élève demande un exercice ou un quiz, propose-le et donne la correction à part.`;
+}
+
+export function simplifierPrompt(input: SimplifierInput): string {
+  return `L'élève n'a pas compris ce passage${input.contexte?.trim() ? ` (extrait de : ${input.contexte.trim()})` : ""} :
+
+<passage>
+${input.texte}
+</passage>
+
+Explique-le beaucoup plus simplement, comme à un ami : des mots de tous les jours, une image ou un exemple concret de la vie courante, 3 à 6 phrases au total. Garde les informations exactes.`;
+}
+
+export const LIRE_SYSTEM = "Tu transcris fidèlement des documents de cours en texte brut.";
+export const LIRE_PROMPT = `Transcris tout le texte de ce document de cours, dans l'ordre de lecture, sans rien résumer ni ajouter. Garde les titres sur leur propre ligne et les listes avec "- ". Écris les formules en texte lisible. Décris en une phrase entre crochets les schémas importants, par exemple [Schéma : le cycle de l'eau]. Si le document ne contient pas de texte lisible, réponds uniquement : AUCUN TEXTE.`;
+
+/** Réponse « aucun texte » de la lecture d'un document. */
+export const isNoText = (text: string) => !text.trim() || /^AUCUN TEXTE\.?$/i.test(text.trim());
+
 /** Plafond de longueur de réponse selon le type (évite les réponses interminables). */
-const MAX_TOKENS: Record<TypeEtude, number> = {
+export const MAX_TOKENS: Record<TypeEtude, number> = {
   fiche: 8000,
   revision: 5000,
   quiz: 10000,
@@ -264,9 +287,7 @@ export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
           { type: "text", text: systemPrompt(input.niveau) },
           {
             type: "text",
-            text: `${sourceBlock(input)}
-
-Tu réponds aux questions de l'élève sur ce cours. Réponds de façon claire et directe, en quelques phrases ou une courte liste. Si la question sort du cours, dis-le en une phrase puis réponds quand même si tu le peux. Si l'élève demande un exercice ou un quiz, propose-le et donne la correction à part.`,
+            text: chatContext(input),
             cache_control: { type: "ephemeral" },
           },
         ],
@@ -289,13 +310,7 @@ Tu réponds aux questions de l'élève sur ce cours. Réponds de façon claire e
         messages: [
           {
             role: "user",
-            content: `L'élève n'a pas compris ce passage${input.contexte?.trim() ? ` (extrait de : ${input.contexte.trim()})` : ""} :
-
-<passage>
-${input.texte}
-</passage>
-
-Explique-le beaucoup plus simplement, comme à un ami : des mots de tous les jours, une image ou un exemple concret de la vie courante, 3 à 6 phrases au total. Garde les informations exactes.`,
+            content: simplifierPrompt(input),
           },
         ],
       });
@@ -312,7 +327,7 @@ Explique-le beaucoup plus simplement, comme à un ami : des mots de tous les jou
           ? ({ type: "document", source: { type: "base64", media_type: "application/pdf", data: input.data } } as const)
           : ({ type: "image", source: { type: "base64", media_type: input.media, data: input.data } } as const);
       const response = await client.beta.messages.create({
-        ...base("Tu transcris fidèlement des documents de cours en texte brut."),
+        ...base(LIRE_SYSTEM),
         max_tokens: 8000,
         output_config: { effort: "low" },
         messages: [
@@ -322,7 +337,7 @@ Explique-le beaucoup plus simplement, comme à un ami : des mots de tous les jou
               file,
               {
                 type: "text",
-                text: `Transcris tout le texte de ce document de cours, dans l'ordre de lecture, sans rien résumer ni ajouter. Garde les titres sur leur propre ligne et les listes avec "- ". Écris les formules en texte lisible. Décris en une phrase entre crochets les schémas importants, par exemple [Schéma : le cycle de l'eau]. Si le document ne contient pas de texte lisible, réponds uniquement : AUCUN TEXTE.`,
+                text: LIRE_PROMPT,
               },
             ],
           },
@@ -330,7 +345,7 @@ Explique-le beaucoup plus simplement, comme à un ami : des mots de tous les jou
       });
       checkStopReason(response.stop_reason, "Ce document contient trop de texte pour être lu en une fois. Envoie-le en plusieurs photos.");
       const text = textOf(response.content);
-      if (!text || /^AUCUN TEXTE\.?$/i.test(text)) {
+      if (isNoText(text)) {
         throw new UserFacingError("Aucun texte lisible n'a été trouvé dans ce document. Essaie une photo plus nette.", 422);
       }
       return text;

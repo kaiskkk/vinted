@@ -72,7 +72,7 @@ export const MODE_INFO: Record<Mode, ModeInfo> = {
     ...LOOKS.general,
     label: "Général",
     icon: (s = 22) => <FolderIcon size={s} />,
-    description: "Ajoute ton cours, Claude prépare tout le reste",
+    description: "Ajoute ton cours, l'IA prépare tout le reste",
   },
   cartes: {
     ...LOOKS.cartes,

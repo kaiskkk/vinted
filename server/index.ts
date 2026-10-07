@@ -2,8 +2,9 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createApp } from "./app";
-import { MODEL, createClaudeGenerator, hasCredentials } from "./claude";
-import { createStudyAI } from "./study";
+import { createAI, usesGemini } from "./ai";
+import { MODEL, hasCredentials } from "./claude";
+import { geminiModel } from "./gemini";
 
 dotenv.config({ quiet: true });
 
@@ -12,18 +13,16 @@ const port = Number(process.env.PORT) || 3001;
 const production = process.argv.includes("--production") || process.env.NODE_ENV === "production";
 
 const app = createApp({
-  generator: createClaudeGenerator(),
-  study: createStudyAI(),
-  hasApiKey: hasCredentials,
+  ...createAI(),
   accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
   staticDir: production ? path.resolve(here, "../dist") : undefined,
   log: (message) => console.log(message),
 });
 
 app.listen(port, () => {
-  console.log(`Serveur prêt sur http://localhost:${port} (modèle ${MODEL})`);
+  console.log(`Serveur prêt sur http://localhost:${port} (IA : ${usesGemini() ? `Gemini, ${geminiModel()}` : `Claude, ${MODEL}`})`);
   if (production) console.log(`Application disponible sur http://localhost:${port}`);
-  if (!hasCredentials()) {
-    console.warn("⚠️  ANTHROPIC_API_KEY absente : la génération avec Claude ne fonctionnera pas. Voir .env.example.");
+  if (!usesGemini() && !hasCredentials()) {
+    console.warn("⚠️  Aucune clé d'IA : ajoute CLE_GEMINI (gratuit) ou ANTHROPIC_API_KEY dans .env. Voir .env.example.");
   }
 });

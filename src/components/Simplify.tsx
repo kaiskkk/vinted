@@ -104,7 +104,7 @@ function SimplifySheet({ text, contexte, onClose }: { text: string; contexte?: s
             </div>
           ) : (
             <p className="flex items-center gap-2 py-6 text-sm text-slate-500 dark:text-slate-400">
-              <Spinner /> Claude cherche une façon plus simple de l'expliquer…
+              <Spinner /> L'IA cherche une façon plus simple de l'expliquer…
             </p>
           )}
         </div>

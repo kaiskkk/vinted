@@ -73,7 +73,7 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
   // Site protégé par un code d'accès : on le demande, puis on réessaie.
   if (res.status === 401 && (json?.code === "CODE_REQUIS" || json?.code === "CODE_INVALIDE") && askCode && attempt < 3) {
     const entered = await askCode(json.code === "CODE_INVALIDE");
-    if (entered === null) throw new ApiError("Code d'accès requis pour utiliser Claude.", 401, false);
+    if (entered === null) throw new ApiError("Code d'accès requis pour utiliser l'IA.", 401, false);
     storeCode(entered.trim());
     return post<T>(url, body, signal, attempt + 1);
   }

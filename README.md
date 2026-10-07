@@ -24,7 +24,9 @@ Une application web personnelle pour apprendre et réviser ses cours, avec l'aid
 ## Prérequis
 
 - [Node.js](https://nodejs.org/) **22.12 ou plus récent** (`node -v` pour vérifier)
-- Une clé API Anthropic, à créer sur <https://platform.claude.com/settings/keys> (uniquement pour la génération avec Claude ; le reste de l'application fonctionne sans)
+- Pour l'IA, au choix (le reste de l'application fonctionne sans) :
+  - **gratuit** : une clé **Google Gemini** (voir « IA gratuite avec Gemini » ci-dessous) ;
+  - **payant** : une clé API Anthropic, à créer sur <https://platform.claude.com/settings/keys>.
 
 ## Installation
 
@@ -36,9 +38,11 @@ npm install
 cp .env.example .env        # sous Windows : copy .env.example .env
 ```
 
-Ouvre ensuite `.env` et colle ta clé :
+Ouvre ensuite `.env` et colle ta clé, gratuite (Gemini) ou payante (Anthropic) :
 
 ```env
+CLE_GEMINI=AIza...
+# ou
 ANTHROPIC_API_KEY=sk-ant-...
 ```
 
@@ -91,6 +95,23 @@ Bon à savoir :
 - À chaque modification du code sur GitHub, Netlify republie le site automatiquement.
 - Les cartes sont enregistrées **dans le navigateur, séparément pour chaque adresse** : celles créées sur `localhost` n'apparaissent pas sur `netlify.app`. Pour les transférer, utilise *Exporter → Fichier JSON* sur l'une, puis *Importer un fichier JSON* sur l'autre.
 - Netlify coupe une fonction au bout de 60 secondes : une génération est donc limitée à environ 50 secondes en ligne. C'est largement suffisant avec `CLAUDE_EFFORT=low` (valeur par défaut).
+
+## IA gratuite avec Gemini
+
+Le site sait utiliser **Google Gemini** à la place de Claude, avec l'offre gratuite de Google (sans carte bancaire). Mêmes fonctions : cartes mentales, fiches, révision, quiz, flashcards, résumés, questions sur le cours, « Plus simple » et lecture des photos.
+
+1. Va sur <https://aistudio.google.com/apikey> et connecte-toi avec un compte Google. Les conditions de Google demandent d'être **majeur** : si tu ne l'es pas, demande à un parent de créer la clé.
+2. Clique sur **Create API key** et copie la clé (elle commence par `AIza`).
+3. Sur Netlify : *Project configuration → Environment variables → Add a variable*, nom **`CLE_GEMINI`**, valeur : ta clé. (En local : `CLE_GEMINI=...` dans `.env`.)
+4. Relance un déploiement (*Deploys → Trigger deploy → Deploy site*), ou attends la prochaine mise à jour du site.
+
+Bon à savoir :
+
+- **Dès que `CLE_GEMINI` existe, le site utilise Gemini** ; sans elle, il utilise Claude. Pour revenir à Claude, supprime simplement la variable.
+- L'offre gratuite est **limitée** (un nombre de demandes par minute et par jour, qui change selon Google) : en cas de dépassement, le site affiche « Limite gratuite de l'IA atteinte » et ça repart un peu plus tard.
+- Sur l'offre gratuite, **Google peut utiliser tes demandes pour améliorer ses produits** : n'y mets pas d'informations personnelles.
+- `MODELE_GEMINI` (facultatif) change de modèle, par exemple `gemini-flash-lite-latest` (plus rapide, limites plus larges). Par défaut : `gemini-flash-latest`.
+- Sans aucune clé, Netlify fournit lui-même Claude grâce à son **AI Gateway**, payé avec les **crédits** de ton compte Netlify : sur l'offre gratuite, quand les crédits sont épuisés, tous tes sites sont mis en pause jusqu'au mois suivant (sans rien te facturer). Avec `CLE_GEMINI`, l'IA ne consomme plus ces crédits.
 
 ## Installer l'appli sur ton téléphone (PWA)
 
@@ -181,10 +202,12 @@ Pendant que tu écris dans un nœud, la carte se décale pour que le texte reste
 
 | Variable | Obligatoire | Description |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Oui (pour Claude) | Ta clé API Anthropic |
+| `CLE_GEMINI` | Non | Clé Google Gemini **gratuite** : si elle est définie, l'IA utilise Gemini au lieu de Claude |
+| `MODELE_GEMINI` | Non | Modèle Gemini (`gemini-flash-latest` par défaut) |
+| `ANTHROPIC_API_KEY` | Non | Ta clé API Anthropic (payante), utilisée quand `CLE_GEMINI` est vide |
 | `PORT` | Non | Port du serveur Express (3001 par défaut ; si tu le changes, adapte le proxy dans `vite.config.ts`) |
 | `CLAUDE_EFFORT` | Non | `low` (par défaut, le plus rapide), `medium` ou `high` (plus réfléchi, plus lent et plus coûteux) |
-| `CODE_ACCES` | Non (conseillé en ligne) | Si défini, le site demande ce code avant d'utiliser Claude |
+| `CODE_ACCES` | Non (conseillé en ligne) | Si défini, le site demande ce code avant d'utiliser l'IA |
 
 ## Comment ça marche
 
@@ -217,8 +240,10 @@ server/
   index.ts        démarrage du serveur local (lit .env)
   app.ts          serveur Express (local)
   api.ts          logique de l'API : validation, code d'accès, messages d'erreur en français
+  ai.ts           choix de l'IA : Gemini si CLE_GEMINI existe, sinon Claude
   claude.ts       cartes mentales : appel à Claude (modèle, consignes, schéma JSON)
   study.ts        fiches, révision, quiz, flashcards, résumé, discussion, « plus simple », lecture de photos
+  gemini.ts       les mêmes fonctions avec Google Gemini (offre gratuite)
 netlify/
   functions/api.ts  la même API, sous forme de fonction Netlify (en ligne)
 shared/
@@ -247,6 +272,8 @@ pwa/
 
 | Message | Solution |
 |---|---|
+| « Clé Gemini invalide » | Recopie la clé depuis Google AI Studio (sans espace ni guillemets) dans `CLE_GEMINI`, puis redéploie |
+| « Limite gratuite de l'IA atteinte » | Limite de l'offre gratuite de Gemini : patiente une minute, ou jusqu'au lendemain si c'est la limite du jour |
 | « Clé API absente » / « Clé API manquante » | En local : crée `.env` avec `ANTHROPIC_API_KEY=...`, puis relance `npm run dev`. Sur Netlify : ajoute la variable, puis redéploie |
 | La fenêtre « Code d'accès » s'affiche | C'est la valeur de `CODE_ACCES` choisie dans tes variables d'environnement |
 | « Le serveur n'a pas répondu à temps » (en ligne) | La génération a dépassé la limite de Netlify : réessaie, ou fais une demande plus courte |

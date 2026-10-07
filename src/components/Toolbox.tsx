@@ -347,7 +347,7 @@ export function Toolbox({
             ["Suppr", "supprimer la sélection"],
             ["Ctrl + Z / Ctrl + Y", "annuler / rétablir"],
             ["Échap", "tout désélectionner"],
-            ["Clic droit", "menu (développer avec Claude…)"],
+            ["Clic droit", "menu (développer avec l'IA…)"],
             ["Maj + glisser", "sélection multiple"],
           ].map(([k, v]) => (
             <li key={k} className="flex items-center gap-2">

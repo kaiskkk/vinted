@@ -33,15 +33,15 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
   fiches: {
     kinds: ["fiche"],
     type: "fiche",
-    loading: "Claude prépare ta fiche…",
-    createLabel: "Créer une fiche avec Claude",
+    loading: "L'IA prépare ta fiche…",
+    createLabel: "Créer une fiche avec l'IA",
     createHint: "Notions clés, définitions, dates, formules, exemples et pièges, à partir de ton cours.",
     empty: "Une fiche claire et colorée, prête à imprimer, à partir de ton cours ou d'un simple sujet.",
   },
   revision: {
     kinds: ["revision", "planning"],
     type: "revision",
-    loading: "Claude condense ton cours…",
+    loading: "L'IA condense ton cours…",
     createLabel: "Fiche de révision express",
     createHint: "L'essentiel sur une page et les 10 choses à savoir absolument.",
     empty: "L'essentiel de ton cours sur une seule page, et un planning jour par jour jusqu'à l'examen.",
@@ -49,8 +49,8 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
   quiz: {
     kinds: ["quiz"],
     type: "quiz",
-    loading: "Claude prépare ton quiz…",
-    createLabel: "Créer un quiz avec Claude",
+    loading: "L'IA prépare ton quiz…",
+    createLabel: "Créer un quiz avec l'IA",
     createHint: "Des QCM corrigés et expliqués, au niveau de difficulté que tu choisis.",
     nombres: [5, 10, 15, 20],
     defaultNombre: 10,
@@ -60,8 +60,8 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
   flashcards: {
     kinds: ["flashcards"],
     type: "flashcards",
-    loading: "Claude prépare tes flashcards…",
-    createLabel: "Créer des flashcards avec Claude",
+    loading: "L'IA prépare tes flashcards…",
+    createLabel: "Créer des flashcards avec l'IA",
     createHint: "Question au recto, réponse au verso, révisées au bon moment.",
     nombres: [10, 20, 30],
     defaultNombre: 20,
@@ -320,7 +320,7 @@ function ClaudeForm({ mode, onCancel }: { mode: StudyMode; onCancel: () => void 
               disabled={task.busy}
               className={`inline-flex min-h-12 items-center justify-center gap-2 rounded-xl bg-linear-to-r px-5 font-semibold text-white shadow-lg transition hover:brightness-110 active:scale-[0.98] disabled:opacity-60 ${info.gradient} ${info.shadow}`}
             >
-              <SparklesIcon size={18} /> Générer avec Claude
+              <SparklesIcon size={18} /> Générer avec l'IA
             </button>
           </div>
         </div>

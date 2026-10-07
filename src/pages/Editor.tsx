@@ -270,13 +270,13 @@ function Editor({ initial }: { initial: MindMap }) {
 
   const warning = useMemo((): { key: string; text: string } | null => {
     if (!online) {
-      return { key: "offline", text: "Hors connexion : tes cartes restent consultables et modifiables. Claude reviendra avec internet." };
+      return { key: "offline", text: "Hors connexion : tes cartes restent consultables et modifiables. L'IA reviendra avec internet." };
     }
     if (health === null) {
-      return { key: "server", text: "Serveur injoignable : la génération avec Claude est indisponible pour l'instant." };
+      return { key: "server", text: "Serveur injoignable : la génération avec l'IA est indisponible pour l'instant." };
     }
     if (health && !health.cleApi) {
-      return { key: "nokey", text: "Génération avec Claude désactivée (aucune clé API configurée). Tout le reste fonctionne." };
+      return { key: "nokey", text: "Génération avec l'IA désactivée (aucune clé d'IA configurée). Tout le reste fonctionne." };
     }
     return null;
   }, [online, health]);
@@ -600,7 +600,7 @@ function Editor({ initial }: { initial: MindMap }) {
     (err: unknown, retry: () => void) => {
       const offline = !navigator.onLine;
       const message = offline
-        ? "Pas de connexion internet : la génération avec Claude reviendra quand tu seras en ligne."
+        ? "Pas de connexion internet : la génération avec l'IA reviendra quand tu seras en ligne."
         : err instanceof Error
           ? err.message
           : "La génération a échoué.";
@@ -907,7 +907,7 @@ function Editor({ initial }: { initial: MindMap }) {
     const node = rf.getNode(m.nodeId);
     return [
       {
-        label: "Développer avec Claude",
+        label: "Développer avec l'IA",
         icon: <SparklesIcon size={16} />,
         accent: true,
         disabled: !!node?.data.loading,
@@ -926,7 +926,7 @@ function Editor({ initial }: { initial: MindMap }) {
     { label: "Ajouter un enfant", icon: <PlusIcon />, onSelect: () => addChild(id) },
     ...(id !== rootId ? [{ label: "Ajouter un frère", icon: <SiblingIcon />, onSelect: () => addSibling(id) }] : []),
     {
-      label: "Développer avec Claude",
+      label: "Développer avec l'IA",
       icon: <SparklesIcon />,
       accent: true,
       disabled: !!menuNode?.data.loading,

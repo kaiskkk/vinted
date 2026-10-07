@@ -72,7 +72,7 @@ async function readPdf(file: File, onProgress: Progress, signal?: AbortSignal): 
     const parts: string[] = [];
     for (let n = 1; n <= count; n++) {
       if (signal?.aborted) throw new DOMException("Annulé", "AbortError");
-      onProgress(`PDF scanné : Claude lit la page ${n}/${count}…`);
+      onProgress(`PDF scanné : l'IA lit la page ${n}/${count}…`);
       const image = await pdfPageImage(doc, n);
       parts.push((await readWithClaude("image/jpeg", image, signal)).texte);
     }
@@ -94,7 +94,7 @@ export async function extractText(file: File, onProgress: Progress, signal?: Abo
   if (type.startsWith("image/") || IMAGE_EXT.test(file.name)) {
     onProgress(`Préparation de la photo « ${file.name} »…`);
     const data = await imageToJpegBase64(file);
-    onProgress(`Claude lit la photo « ${file.name} »…`);
+    onProgress(`L'IA lit la photo « ${file.name} »…`);
     return (await readWithClaude("image/jpeg", data, signal)).texte;
   }
   if (/\.docx?$/i.test(file.name)) {

@@ -110,7 +110,7 @@ export function SourcePicker({
             className={`${input} h-12`}
           />
           <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
-            Pas de cours sous la main ? Claude s'appuie sur ce qu'on apprend à ton niveau.
+            Pas de cours sous la main ? L'IA s'appuie sur ce qu'on apprend à ton niveau.
             {value.cours.trim() && " Ton cours collé reste prioritaire."}
           </p>
         </div>
@@ -151,7 +151,7 @@ export function SourcePicker({
               ) : (
                 <div className="flex min-h-24 flex-col items-center justify-center gap-1.5 rounded-2xl bg-slate-100/70 p-4 text-center text-xs text-slate-500 dark:bg-slate-800/50 dark:text-slate-400">
                   <FileTextIcon size={20} />
-                  Les PDF avec du texte sont lus directement sur ton appareil. Les photos et les PDF scannés sont lus par Claude.
+                  Les PDF avec du texte sont lus directement sur ton appareil. Les photos et les PDF scannés sont lus par l'IA.
                 </div>
               )}
             </div>

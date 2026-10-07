@@ -142,7 +142,7 @@ export function NiveauPicker({ className = "" }: { className?: string }) {
   return (
     <label
       className={`relative inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white/80 pr-8 pl-3 text-sm text-slate-700 transition focus-within:border-indigo-400 tap:min-h-11 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 ${className}`}
-      title="Claude adapte son vocabulaire à ton niveau"
+      title="L'IA adapte son vocabulaire à ton niveau"
     >
       <GraduationIcon size={17} className="shrink-0 text-indigo-500" />
       <span className="sr-only">Mon niveau</span>
@@ -256,7 +256,7 @@ export function useClaudeTask() {
   const run = useCallback(async (label: string, task: (signal: AbortSignal) => Promise<void>) => {
     last.current = { label, task };
     if (!navigator.onLine) {
-      setState({ status: "error", offline: true, message: "Tu es hors connexion. Claude a besoin d'internet : reconnecte-toi puis réessaie." });
+      setState({ status: "error", offline: true, message: "Tu es hors connexion. L'IA a besoin d'internet : reconnecte-toi puis réessaie." });
       return;
     }
     const c = new AbortController();
