@@ -9,6 +9,22 @@ for (const type of ["gesturestart", "gesturechange"]) {
   document.addEventListener(type, (e) => e.preventDefault(), { passive: false });
 }
 
+// Impression : toujours sur fond blanc, même en thème sombre.
+window.addEventListener("beforeprint", () => {
+  const root = document.documentElement;
+  if (root.classList.contains("dark")) {
+    root.dataset.printDark = "1";
+    root.classList.remove("dark");
+  }
+});
+window.addEventListener("afterprint", () => {
+  const root = document.documentElement;
+  if (root.dataset.printDark) {
+    delete root.dataset.printDark;
+    root.classList.add("dark");
+  }
+});
+
 // Application installable et consultable hors connexion (uniquement sur le site compilé).
 if (import.meta.env.PROD && "serviceWorker" in navigator) {
   window.addEventListener("load", () => {

@@ -50,7 +50,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
       {children}
       <div
         // --mm-bottom-ui : hauteur des barres flottantes du bas (éditeur sur téléphone).
-        className="pointer-events-none fixed left-1/2 z-[60] flex w-[min(calc(100vw-1.5rem),460px)] -translate-x-1/2 flex-col gap-2"
+        className="no-print pointer-events-none fixed left-1/2 z-[60] flex w-[min(calc(100vw-1.5rem),460px)] -translate-x-1/2 flex-col gap-2"
         style={{ bottom: "calc(1rem + var(--safe-bottom) + var(--mm-bottom-ui, 0px))" }}
       >
         {toasts.map((t) => (

@@ -45,7 +45,8 @@ import { ActionSheet, BottomSheet, type SheetAction } from "../components/Sheet"
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useToast } from "../components/Toasts";
 import { Toolbox } from "../components/Toolbox";
-import { goHome } from "../hooks/useHashRoute";
+import { openClasseur, openMode } from "../hooks/useHashRoute";
+import { classeurOfMap, loadClasseur } from "../lib/docs";
 import { useHistory, type Snapshot } from "../hooks/useHistory";
 import { isPhone, useLayout } from "../hooks/useLayout";
 import { useTheme } from "../hooks/useTheme";
@@ -108,6 +109,13 @@ function readDismissed(): string | null {
   }
 }
 
+/** Retour depuis l'éditeur : vers le classeur de la carte s'il existe, sinon vers « Mes cartes ». */
+function leaveEditor(mapId: string) {
+  const classeurId = classeurOfMap(mapId);
+  if (classeurId && loadClasseur(classeurId)) openClasseur(classeurId);
+  else openMode("cartes");
+}
+
 export default function EditorPage({ mapId }: { mapId: string }) {
   const [initial] = useState(() => loadMap(mapId));
   if (!initial) {
@@ -115,7 +123,7 @@ export default function EditorPage({ mapId }: { mapId: string }) {
       <div className="flex min-h-dvh flex-col items-center justify-center gap-4 p-6 text-center">
         <p className="text-lg font-medium">Cette carte est introuvable.</p>
         <p className="text-sm text-slate-500">Elle a peut-être été supprimée, ou créée dans un autre navigateur.</p>
-        <button className={btn.primary} onClick={goHome}>
+        <button className={btn.primary} onClick={() => openMode("cartes")}>
           <ArrowLeftIcon size={16} /> Retour à mes cartes
         </button>
       </div>
@@ -1019,7 +1027,7 @@ function Editor({ initial }: { initial: MindMap }) {
           style={{ paddingTop: "var(--safe-top)", paddingLeft: "max(0.25rem, var(--safe-left))", paddingRight: "max(0.25rem, var(--safe-right))" }}
         >
           <div className={`flex items-center gap-1 ${phone ? "h-13" : "h-14 px-2 gap-2"}`}>
-            <button className={btn.icon} onClick={goHome} title="Retour à mes cartes" aria-label="Retour à mes cartes">
+            <button className={btn.icon} onClick={() => leaveEditor(initial.id)} title="Retour" aria-label="Retour">
               <ArrowLeftIcon />
             </button>
             {nameInput}

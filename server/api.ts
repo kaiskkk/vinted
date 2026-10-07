@@ -4,7 +4,12 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { sanitizeAiMap, type AiMap } from "../shared/aiMap";
+import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeEtude, type TypeEtude } from "../shared/study";
 import { MODEL, UserFacingError, type GenerateInput, type MindMapGenerator } from "./claude";
+import type { StudyAI } from "./study";
+
+/** Taille maximale d'une photo ou d'une page envoyée en base64 (≈ 3 Mo). */
+export const LIRE_MAX_CHARS = 4_000_000;
 
 const CarteInput = z.object({
   titre: z.string().max(300),
@@ -28,12 +33,73 @@ const Prompt = z
   .min(1, "Écris d'abord ce que tu veux dans ta carte mentale.")
   .max(2000, "Ta demande est trop longue (2000 caractères maximum).");
 
+const Niveau = z.enum(["college", "lycee", "superieur"]).optional();
+// Un peu de marge au-delà de SOURCE_MAX : le front coupe déjà le cours à cette longueur.
+const Cours = z
+  .string()
+  .max(SOURCE_MAX + 5000, "Ton cours est trop long : garde seulement le chapitre à travailler.")
+  .optional();
+const Sujet = z.string().trim().max(300, "Le sujet est trop long (300 caractères maximum).").optional();
+
 const GenerateBody = z.discriminatedUnion("mode", [
-  z.object({ mode: z.literal("replace"), prompt: Prompt }),
+  z.object({ mode: z.literal("replace"), prompt: Prompt, cours: Cours, niveau: Niveau }),
   z.object({ mode: z.literal("append"), prompt: Prompt, carte: CarteInput }),
 ]);
 
 const ExpandBody = z.object({ carte: CarteInput, nodeId: z.string().min(1) });
+
+const hasSource = (b: { cours?: string; sujet?: string }) => Boolean(b.cours?.trim() || b.sujet?.trim());
+const NO_SOURCE = { message: "Ajoute d'abord un cours ou un sujet." };
+
+const EtudeBody = z
+  .object({
+    type: z.enum(TYPES_ETUDE as [TypeEtude, ...TypeEtude[]]),
+    cours: Cours,
+    sujet: Sujet,
+    niveau: Niveau,
+    nombre: z.number().int().min(3).max(30).optional(),
+    difficulte: z.enum(["facile", "moyen", "difficile"]).optional(),
+    consigne: z.string().max(500, "La précision est trop longue (500 caractères maximum).").optional(),
+  })
+  .refine(hasSource, NO_SOURCE);
+
+const ChatBody = z
+  .object({
+    cours: Cours,
+    sujet: Sujet,
+    niveau: Niveau,
+    historique: z
+      .array(z.object({ role: z.enum(["user", "assistant"]), texte: z.string().max(8000) }))
+      .max(40)
+      .default([]),
+    question: z.string().trim().min(1, "Écris d'abord ta question.").max(2000, "Ta question est trop longue (2000 caractères maximum)."),
+  })
+  .refine(hasSource, NO_SOURCE);
+
+const SimplifierBody = z.object({
+  texte: z.string().trim().min(1, "Il n'y a rien à expliquer.").max(5000, "Ce passage est trop long à simplifier."),
+  contexte: z.string().max(500).optional(),
+  niveau: Niveau,
+});
+
+const LireBody = z.object({
+  media: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif", "application/pdf"], {
+    error: "Format non pris en charge : envoie une photo (JPEG, PNG) ou un PDF.",
+  }),
+  data: z
+    .string()
+    .min(1)
+    .max(LIRE_MAX_CHARS, "Fichier trop lourd : envoie une photo plus légère.")
+    .regex(/^[A-Za-z0-9+/=\s]+$/, "Fichier illisible."),
+});
+
+/** Plafond des réponses par type, au cas où Claude en ferait trop. */
+function limitCount(type: TypeEtude, doc: ReturnType<typeof sanitizeEtude>, nombre?: number) {
+  if (!nombre) return doc;
+  if (type === "quiz" && "questions" in doc) return { ...doc, questions: doc.questions.slice(0, nombre) };
+  if (type === "flashcards" && "cartes" in doc) return { ...doc, cartes: doc.cartes.slice(0, nombre) };
+  return doc;
+}
 
 /** En-tête HTTP qui transporte le code d'accès du site. */
 export const ACCESS_CODE_HEADER = "x-code-acces";
@@ -91,13 +157,15 @@ const digest = (s: string) => createHash("sha256").update(s).digest();
 
 export interface ApiOptions {
   generator: MindMapGenerator;
+  /** Outils d'étude (fiches, quiz…) ; absents, leurs routes répondent 503. */
+  study?: StudyAI;
   hasApiKey: () => boolean;
   /** Code exigé pour utiliser Claude (variable CODE_ACCES) ; aucun contrôle s'il est vide. */
   accessCode?: () => string | undefined;
   log?: (message: string) => void;
 }
 
-export function createApi({ generator, hasApiKey, accessCode = () => undefined, log = () => {} }: ApiOptions) {
+export function createApi({ generator, study, hasApiKey, accessCode = () => undefined, log = () => {} }: ApiOptions) {
   /** Renvoie une réponse d'erreur si le code d'accès est absent ou faux, sinon null. */
   function checkAccess(provided: string | undefined | null): ApiResponse | null {
     const expected = accessCode();
@@ -138,6 +206,31 @@ export function createApi({ generator, hasApiKey, accessCode = () => undefined, 
     }
   }
 
+  /** Appel générique : contrôle d'accès, validation de la requête, appel à Claude, erreurs lisibles. */
+  async function handle<T>(
+    name: string,
+    body: unknown,
+    code: string | undefined | null,
+    schema: z.ZodType<T>,
+    work: (input: T, ai: StudyAI) => Promise<unknown>,
+  ): Promise<ApiResponse> {
+    const denied = checkAccess(code);
+    if (denied) return denied;
+    const parsed = schema.safeParse(body);
+    if (!parsed.success) return badRequest(parsed.error);
+    if (!study) return { status: 503, body: { erreur: "Cette fonction n'est pas disponible sur ce serveur." } };
+    const started = Date.now();
+    try {
+      const result = await work(parsed.data, study);
+      log(`[claude] ${name} : réussi en ${Date.now() - started} ms`);
+      return { status: 200, body: result };
+    } catch (err) {
+      const userError = toUserError(err);
+      log(`[claude] ${name} : échec (${userError.status}) ${userError.message}`);
+      return { status: userError.status, body: { erreur: userError.message } };
+    }
+  }
+
   return {
     health(): ApiResponse {
       return { status: 200, body: { ok: true, modele: MODEL, cleApi: hasApiKey(), codeRequis: Boolean(accessCode()) } };
@@ -162,12 +255,46 @@ export function createApi({ generator, hasApiKey, accessCode = () => undefined, 
       }
       return run({ mode: "expand", carte, nodeId });
     },
+
+    etude: (body: unknown, code?: string | null) =>
+      handle(`étude ${(body as { type?: string })?.type ?? "?"}`, body, code, EtudeBody, async (input, ai) => {
+        const raw = await ai.etude(input);
+        const doc = limitCount(input.type, sanitizeEtude(input.type, raw), input.nombre);
+        if (!isUsable(input.type, doc)) {
+          throw new UserFacingError("Claude n'a rien produit d'exploitable. Réessaie, ou ajoute plus de contenu au cours.", 502);
+        }
+        return doc;
+      }),
+
+    chat: (body: unknown, code?: string | null) => handle("question", body, code, ChatBody, async (input, ai) => ({ reponse: await ai.chat(input) })),
+
+    simplifier: (body: unknown, code?: string | null) =>
+      handle("simplifier", body, code, SimplifierBody, async (input, ai) => ({ explication: await ai.simplifier(input) })),
+
+    lire: (body: unknown, code?: string | null) =>
+      handle("lecture", body, code, LireBody, async (input, ai) => ({
+        texte: (await ai.lire({ media: input.media, data: input.data.replace(/\s+/g, "") })).slice(0, SOURCE_MAX),
+      })),
   };
 }
 
+/** Routes POST de l'API et méthode correspondante. */
+export const POST_ROUTES = {
+  "/api/generate": "generate",
+  "/api/expand": "expand",
+  "/api/etude": "etude",
+  "/api/chat": "chat",
+  "/api/simplifier": "simplifier",
+  "/api/lire": "lire",
+} as const satisfies Record<string, keyof Api>;
+
 export type Api = ReturnType<typeof createApi>;
 
+export const TOO_LARGE = "Les données envoyées sont trop volumineuses.";
+
 const MAX_BODY_CHARS = 1_000_000;
+// Une photo de cours en base64 pèse plus lourd que le reste.
+const bodyLimit = (route: string) => (route === "/api/lire" ? LIRE_MAX_CHARS + 10_000 : MAX_BODY_CHARS);
 
 /** Gestionnaire HTTP au format web standard (Request → Response), utilisé par Netlify. */
 export function createFetchHandler(api: Api) {
@@ -180,20 +307,18 @@ export function createFetchHandler(api: Api) {
   return async (req: Request): Promise<Response> => {
     const route = new URL(req.url).pathname.replace(/\/+$/, "");
     if (route === "/api/health") return reply(api.health());
-    if (route !== "/api/generate" && route !== "/api/expand") {
-      return reply({ status: 404, body: { erreur: "Route inconnue." } });
-    }
+    const method = POST_ROUTES[route as keyof typeof POST_ROUTES];
+    if (!method) return reply({ status: 404, body: { erreur: "Route inconnue." } });
     if (req.method !== "POST") return reply({ status: 405, body: { erreur: "Méthode non autorisée." } });
 
     const text = await req.text();
-    if (text.length > MAX_BODY_CHARS) return reply({ status: 413, body: { erreur: "La carte envoyée est trop volumineuse." } });
+    if (text.length > bodyLimit(route)) return reply({ status: 413, body: { erreur: TOO_LARGE } });
     let body: unknown;
     try {
       body = JSON.parse(text);
     } catch {
       return reply({ status: 400, body: { erreur: "Requête invalide (JSON mal formé)." } });
     }
-    const code = req.headers.get(ACCESS_CODE_HEADER);
-    return reply(route === "/api/generate" ? await api.generate(body, code) : await api.expand(body, code));
+    return reply(await api[method](body, req.headers.get(ACCESS_CODE_HEADER)));
   };
 }

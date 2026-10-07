@@ -1,4 +1,5 @@
 import type { AiMap } from "../../shared/aiMap";
+import type { Difficulte, FicheIA, FlashcardsIA, Niveau, QuizIA, ResumeIA, RevisionIA, TypeEtude } from "../../shared/study";
 
 const CODE_KEY = "mm-code-acces";
 
@@ -87,8 +88,46 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
   return json as T;
 }
 
-export const generateMap = (prompt: string, signal?: AbortSignal) =>
-  post<AiMap>("/api/generate", { mode: "replace", prompt }, signal);
+export const generateMap = (prompt: string, signal?: AbortSignal) => post<AiMap>("/api/generate", { mode: "replace", prompt }, signal);
+
+/** Carte mentale construite à partir d'un cours (mode Général). */
+export const generateMapFromCourse = (prompt: string, cours: string, niveau: Niveau, signal?: AbortSignal) =>
+  post<AiMap>("/api/generate", { mode: "replace", prompt, cours: cours || undefined, niveau }, signal);
+
+export interface SourceEtude {
+  cours?: string;
+  sujet?: string;
+}
+
+export interface EtudeOptions {
+  nombre?: number;
+  difficulte?: Difficulte;
+  consigne?: string;
+}
+
+interface EtudeResults {
+  fiche: FicheIA;
+  revision: RevisionIA;
+  quiz: QuizIA;
+  flashcards: FlashcardsIA;
+  resume: ResumeIA;
+}
+
+export const generateEtude = <T extends TypeEtude>(type: T, source: SourceEtude, niveau: Niveau, options: EtudeOptions = {}, signal?: AbortSignal) =>
+  post<EtudeResults[T]>("/api/etude", { type, ...source, niveau, ...options }, signal);
+
+export const askCourse = (
+  source: SourceEtude,
+  niveau: Niveau,
+  historique: { role: "user" | "assistant"; texte: string }[],
+  question: string,
+  signal?: AbortSignal,
+) => post<{ reponse: string }>("/api/chat", { ...source, niveau, historique, question }, signal);
+
+export const simplify = (texte: string, niveau: Niveau, contexte?: string, signal?: AbortSignal) =>
+  post<{ explication: string }>("/api/simplifier", { texte, niveau, contexte }, signal);
+
+export const readWithClaude = (media: string, data: string, signal?: AbortSignal) => post<{ texte: string }>("/api/lire", { media, data }, signal);
 
 export const appendToMap = (prompt: string, carte: AiMap, signal?: AbortSignal) =>
   post<AiMap>("/api/generate", { mode: "append", prompt, carte }, signal);

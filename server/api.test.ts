@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { AiMap } from "../shared/aiMap";
 import { createApi, createFetchHandler } from "./api";
 import { createApp } from "./app";
+import type { StudyAI } from "./study";
 
 const carte: AiMap = {
   titre: "Foot",
@@ -92,5 +93,86 @@ describe("gestionnaire Netlify (Request → Response)", () => {
     expect(denied.status).toBe(401);
     const ok = await handler(post("/api/generate", JSON.stringify({ mode: "replace", prompt: "x" }), { "X-Code-Acces": "secret" }));
     expect(ok.status).toBe(200);
+  });
+});
+
+describe("outils d'étude", () => {
+  const study: StudyAI = {
+    etude: async (input) => {
+      if (input.type === "quiz") {
+        return {
+          titre: "Quiz",
+          questions: Array.from({ length: 8 }, (_, i) => ({
+            question: `Question ${i + 1} ?`,
+            choix: ["A", "B", "C", "D"],
+            bonneReponse: i % 4,
+            explication: "Parce que.",
+          })),
+        };
+      }
+      if (input.type === "fiche") return { titre: "Fiche", sousTitre: "", blocs: [] };
+      return { titre: "Cartes", cartes: [{ recto: "Recto", verso: "Verso" }] };
+    },
+    chat: async (input) => `Réponse à : ${input.question}`,
+    simplifier: async () => "Plus simple.",
+    lire: async () => "Texte lu",
+  };
+  const api = createApi({ generator: { generate: async () => carte }, study, hasApiKey: () => true });
+
+  it("nettoie et plafonne le quiz au nombre demandé", async () => {
+    const res = await api.etude({ type: "quiz", cours: "Le cours", nombre: 5, difficulte: "facile" });
+    expect(res.status).toBe(200);
+    expect((res.body as { questions: unknown[] }).questions).toHaveLength(5);
+  });
+
+  it("refuse une demande sans cours ni sujet, ou d'un type inconnu", async () => {
+    const empty = await api.etude({ type: "fiche", cours: "  " });
+    expect(empty.status).toBe(400);
+    expect((empty.body as { erreur: string }).erreur).toMatch(/cours ou un sujet/);
+    expect((await api.etude({ type: "poeme", sujet: "x" })).status).toBe(400);
+    expect((await api.etude({ type: "quiz", sujet: "x", nombre: 500 })).status).toBe(400);
+  });
+
+  it("signale une réponse vide de Claude", async () => {
+    const res = await api.etude({ type: "fiche", sujet: "Les volcans" });
+    expect(res.status).toBe(502);
+    expect((res.body as { erreur: string }).erreur).toMatch(/exploitable/);
+  });
+
+  it("répond aux questions, simplifie et lit une photo", async () => {
+    const chat = await api.chat({ sujet: "Volcans", question: "C'est quoi le magma ?", historique: [] });
+    expect(chat.body).toEqual({ reponse: "Réponse à : C'est quoi le magma ?" });
+    expect((await api.simplifier({ texte: "Un passage compliqué" })).body).toEqual({ explication: "Plus simple." });
+    expect((await api.lire({ media: "image/jpeg", data: "aGVsbG8=" })).body).toEqual({ texte: "Texte lu" });
+    expect((await api.lire({ media: "image/heic", data: "aGVsbG8=" })).status).toBe(400);
+    expect((await api.lire({ media: "image/png", data: "<script>" })).status).toBe(400);
+  });
+
+  it("répond 503 sans outils d'étude, et exige le code d'accès", async () => {
+    const without = createApi({ generator: { generate: async () => carte }, hasApiKey: () => true });
+    expect((await without.chat({ sujet: "x", question: "y" })).status).toBe(503);
+    const locked = createApi({ generator: { generate: async () => carte }, study, hasApiKey: () => true, accessCode: () => "secret" });
+    expect((await locked.etude({ type: "quiz", sujet: "x" })).status).toBe(401);
+  });
+
+  it("accepte une photo plus lourde que les autres requêtes", async () => {
+    const handler = createFetchHandler(api);
+    const big = JSON.stringify({ media: "image/jpeg", data: "A".repeat(1_500_000) });
+    const post = (path: string, body: string) =>
+      handler(new Request(`https://exemple.netlify.app${path}`, { method: "POST", body, headers: { "content-type": "application/json" } }));
+    expect((await post("/api/lire", big)).status).toBe(200);
+    expect((await post("/api/chat", big)).status).toBe(413);
+
+    const app = createApp({ generator: { generate: async () => carte }, study, hasApiKey: () => true });
+    expect(
+      (
+        await request(app)
+          .post("/api/lire")
+          .send({ media: "image/jpeg", data: "A".repeat(1_500_000) })
+      ).status,
+    ).toBe(200);
+    expect((await request(app).post("/api/etude").send({ type: "flashcards", sujet: "Volcans", nombre: 3 })).body).toMatchObject({
+      cartes: [{ recto: "Recto", verso: "Verso" }],
+    });
   });
 });

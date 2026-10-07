@@ -2,6 +2,7 @@ import Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
 import type { AiMap } from "../shared/aiMap";
+import { NIVEAUX, type Niveau } from "../shared/study";
 
 export const MODEL = "claude-sonnet-5-5";
 
@@ -9,7 +10,7 @@ type Effort = "low" | "medium" | "high";
 const EFFORTS: Effort[] = ["low", "medium", "high"];
 
 export type GenerateInput =
-  | { mode: "replace"; prompt: string }
+  | { mode: "replace"; prompt: string; cours?: string; niveau?: Niveau }
   | { mode: "append"; prompt: string; carte: AiMap }
   | { mode: "expand"; carte: AiMap; nodeId: string };
 
@@ -67,14 +68,33 @@ function pathTo(carte: AiMap, nodeId: string): string[] {
   return path;
 }
 
+/** Consigne de vocabulaire selon le niveau scolaire choisi par l'élève. */
+export function niveauConsigne(niveau: Niveau | undefined): string {
+  if (!niveau) return "";
+  const label = NIVEAUX.find((n) => n.value === niveau)?.label ?? niveau;
+  return `Niveau de l'élève : ${label}. Adapte le vocabulaire à ce niveau.`;
+}
+
 export function buildUserMessage(input: GenerateInput): string {
   if (input.mode === "replace") {
-    return `Crée une carte mentale complète pour la demande suivante.
+    const cours = input.cours?.trim();
+    const niveau = niveauConsigne(input.niveau);
+    return `${
+      cours
+        ? `Voici le cours de l'élève :
+
+<cours>
+${cours}
+</cours>
+
+Crée une carte mentale complète de ce cours, fidèle à son contenu, pour la demande suivante.`
+        : "Crée une carte mentale complète pour la demande suivante."
+    }
 
 <demande>
 ${input.prompt}
 </demande>
-
+${niveau ? `\n${niveau}\n` : ""}
 Structure attendue : un seul nœud central (parentId null) qui résume le sujet en quelques mots, 4 à 7 branches principales, chacune avec 2 à 5 sous-idées, et un troisième niveau seulement quand il apporte du concret. Entre 20 et 45 nœuds au total. "titre" reprend le texte du nœud central.`;
   }
 
@@ -125,21 +145,44 @@ export interface GeneratorOptions {
   maxRetries?: number;
 }
 
-export function createClaudeGenerator({ timeoutMs = 120_000, maxRetries = 2 }: GeneratorOptions = {}): MindMapGenerator {
+/** Client Anthropic partagé, créé au premier appel ; erreur claire si la clé manque. */
+export function clientFactory({ timeoutMs = 120_000, maxRetries = 2 }: GeneratorOptions = {}) {
   let client: Anthropic | null = null;
+  return (): Anthropic => {
+    if (!hasCredentials()) {
+      throw new UserFacingError(
+        "Clé API manquante : ajoute ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne), puis relance ou redéploie.",
+        500,
+      );
+    }
+    client ??= new Anthropic({ timeout: timeoutMs, maxRetries });
+    return client;
+  };
+}
+
+/** Niveau de réflexion de Claude (variable CLAUDE_EFFORT), « low » par défaut : plus rapide. */
+export function effortFromEnv(): Effort {
+  const effortEnv = process.env.CLAUDE_EFFORT as Effort | undefined;
+  return effortEnv && EFFORTS.includes(effortEnv) ? effortEnv : "low";
+}
+
+/** Transforme les fins de réponse anormales (refus, réponse coupée) en messages clairs. */
+export function checkStopReason(stopReason: string | null | undefined, tooLong: string) {
+  if (stopReason === "refusal") {
+    throw new UserFacingError("Claude a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
+  }
+  if (stopReason === "max_tokens") {
+    throw new UserFacingError(tooLong, 502);
+  }
+}
+
+export function createClaudeGenerator(options: GeneratorOptions = {}): MindMapGenerator {
+  const getClient = clientFactory(options);
 
   return {
     async generate(input) {
-      if (!hasCredentials()) {
-        throw new UserFacingError(
-          "Clé API manquante : ajoute ANTHROPIC_API_KEY dans le fichier .env (en local) ou dans les variables d'environnement Netlify (en ligne), puis relance ou redéploie.",
-          500,
-        );
-      }
-      client ??= new Anthropic({ timeout: timeoutMs, maxRetries });
-
-      const effortEnv = process.env.CLAUDE_EFFORT as Effort | undefined;
-      const effort: Effort = effortEnv && EFFORTS.includes(effortEnv) ? effortEnv : "low";
+      const client = getClient();
+      const effort = effortFromEnv();
 
       const response = await client.beta.messages.parse({
         model: MODEL,
@@ -156,18 +199,7 @@ export function createClaudeGenerator({ timeoutMs = 120_000, maxRetries = 2 }: G
         messages: [{ role: "user", content: buildUserMessage(input) }],
       });
 
-      if (response.stop_reason === "refusal") {
-        throw new UserFacingError(
-          "Claude a refusé de traiter cette demande. Reformule-la et réessaie.",
-          422,
-        );
-      }
-      if (response.stop_reason === "max_tokens") {
-        throw new UserFacingError(
-          "La réponse de Claude a été coupée car elle était trop longue. Essaie une demande plus ciblée.",
-          502,
-        );
-      }
+      checkStopReason(response.stop_reason, "La réponse de Claude a été coupée car elle était trop longue. Essaie une demande plus ciblée.");
       if (!response.parsed_output) {
         throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
       }

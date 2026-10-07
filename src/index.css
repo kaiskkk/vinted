@@ -1,4 +1,5 @@
 @import "tailwindcss";
+@import "@fontsource/patrick-hand/latin-400.css";
 
 @custom-variant dark (&:where(.dark, .dark *));
 
@@ -38,6 +39,11 @@
 @keyframes sheet-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-5px); }
+  75% { transform: translateX(5px); }
 }
 @keyframes shimmer {
   from { transform: translateX(-100%); }
@@ -88,6 +94,25 @@ body {
   textarea,
   select {
     font-size: max(16px, 1em) !important;
+  }
+}
+
+/* Fiches : les grands titres modifiables gardent leur taille (toujours au moins 16 px). */
+@media (pointer: coarse) {
+  .fiche input.fiche-title {
+    font-size: 1.6rem !important;
+  }
+  .fiche-minimaliste input.fiche-title {
+    font-size: 1.8rem !important;
+  }
+  .fiche-cahier input.fiche-title {
+    font-size: 2rem !important;
+  }
+  .fiche input.fiche-bloc-titre {
+    font-size: max(16px, 1.05rem) !important;
+  }
+  .fiche-cahier input.fiche-bloc-titre {
+    font-size: 1.3rem !important;
   }
 }
 
@@ -177,6 +202,484 @@ body {
 }
 .mm-scroll::-webkit-scrollbar { width: 8px; }
 .mm-scroll::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300 dark:bg-slate-700; }
+
+/* ---------- Fiches ---------- */
+.fiche {
+  --paper: #ffffff;
+  --ink: #0f172a;
+  --muted: #64748b;
+  --line: #e2e8f0;
+  position: relative;
+  background: var(--paper);
+  color: var(--ink);
+  border: 1px solid var(--line);
+  border-radius: 1.25rem;
+  padding: 1.25rem;
+  box-shadow: 0 18px 40px -24px rgb(15 23 42 / 0.35);
+  font-size: 0.95rem;
+}
+.dark .fiche {
+  --paper: #121726;
+  --ink: #e2e8f0;
+  --muted: #94a3b8;
+  --line: #1f2a40;
+  box-shadow: none;
+}
+@media (min-width: 640px) {
+  .fiche {
+    padding: 2.25rem 2.5rem;
+  }
+}
+/* Champs d'édition (définis avant les tailles de texte, qui les surchargent) */
+.fiche-input {
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border: 1px dashed transparent;
+  border-radius: 0.5rem;
+  padding: 0.15rem 0.35rem;
+  margin-left: -0.35rem;
+  outline: none;
+  transition: border-color 0.15s, background 0.15s;
+}
+.fiche-title {
+  display: block;
+  font-size: 1.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  letter-spacing: -0.015em;
+}
+.fiche-subtitle {
+  display: block;
+  margin-top: 0.25rem;
+  color: var(--muted);
+}
+.fiche-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem 0.9rem;
+  margin-top: 0.9rem;
+  font-size: 0.72rem;
+  color: var(--muted);
+}
+.fiche-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+.fiche-legend li::before {
+  content: "";
+  width: 0.6rem;
+  height: 0.6rem;
+  border-radius: 999px;
+  background: var(--c);
+}
+.fiche-blocs {
+  display: flex;
+  flex-direction: column;
+  gap: 0.85rem;
+  margin-top: 1.25rem;
+}
+.fiche-bloc {
+  position: relative;
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.fiche-bloc-top {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 1.5rem;
+}
+.fiche-label {
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--c);
+}
+.dark .fiche-label {
+  color: color-mix(in srgb, var(--c) 65%, white);
+}
+.fiche-bloc-titre {
+  display: block;
+  font-size: 1.05rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+.fiche-bloc-contenu {
+  display: block;
+  margin-top: 0.2rem;
+  line-height: 1.6;
+}
+.fiche-foot {
+  margin-top: 1.75rem;
+  font-size: 0.7rem;
+  color: var(--muted);
+  text-align: right;
+}
+
+.fiche .fiche-input {
+  width: calc(100% + 0.7rem);
+}
+.fiche-input:hover {
+  border-color: var(--line);
+}
+.fiche-input:focus {
+  border-color: var(--c, #6366f1);
+  background: color-mix(in srgb, var(--c, #6366f1) 6%, transparent);
+}
+.fiche-input::placeholder {
+  color: var(--muted);
+  opacity: 0.7;
+}
+.fiche-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-bottom: 0.35rem;
+}
+.fiche-tools > .fiche-type,
+.fiche-tools > .fiche-swatch {
+  flex-shrink: 0;
+}
+.fiche-type {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  min-height: 2.25rem;
+  padding: 0 0.6rem;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--c);
+  background: color-mix(in srgb, var(--c) 12%, transparent);
+}
+.fiche-type select {
+  appearance: none;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  border: none;
+  outline: none;
+  cursor: pointer;
+  padding-right: 0.2rem;
+}
+.dark .fiche-type {
+  color: color-mix(in srgb, var(--c) 60%, white);
+}
+.fiche-type select option {
+  color: #0f172a;
+}
+.fiche-swatch {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border-radius: 999px;
+}
+.fiche-swatch span {
+  width: 1.15rem;
+  height: 1.15rem;
+  border-radius: 999px;
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 3.5px color-mix(in srgb, var(--ink) 25%, transparent);
+}
+.fiche-color,
+.fiche-color-auto {
+  height: 2.25rem;
+  min-width: 2.25rem;
+  border-radius: 999px;
+  transition: transform 0.1s;
+}
+.fiche-color-auto {
+  padding: 0 0.75rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  border: 1px solid var(--line);
+}
+.fiche-color.is-active,
+.fiche-color-auto.is-active {
+  box-shadow: 0 0 0 2px var(--paper), 0 0 0 4px var(--ink);
+}
+.fiche-color:active,
+.fiche-color-auto:active {
+  transform: scale(0.92);
+}
+@media (pointer: coarse), (max-width: 767.98px) {
+  .fiche-type,
+  .fiche-swatch,
+  .fiche-color,
+  .fiche-color-auto {
+    min-height: 2.75rem;
+    min-width: 2.75rem;
+  }
+  .fiche-swatch {
+    width: 2.75rem;
+    height: 2.75rem;
+  }
+}
+
+/* Style « classique » : filet coloré à gauche */
+.fiche-classique .fiche-head {
+  padding-bottom: 0.9rem;
+  border-bottom: 2px solid var(--ink);
+}
+.fiche-classique .fiche-bloc {
+  border-left: 4px solid var(--c);
+  border-radius: 0 0.75rem 0.75rem 0;
+  padding: 0.6rem 0.9rem 0.7rem;
+  background: color-mix(in srgb, var(--c) 6%, var(--paper));
+}
+.fiche-classique .fiche-bloc[data-type="retenir"] {
+  border: 2px solid var(--c);
+  border-radius: 0.9rem;
+  background: color-mix(in srgb, var(--c) 9%, var(--paper));
+}
+
+/* Style « colorée » : bandeau en dégradé, blocs pleins, deux colonnes sur grand écran */
+.fiche-coloree .fiche-head {
+  margin: -0.25rem -0.25rem 0;
+  padding: 1.1rem 1.25rem;
+  border-radius: 1rem;
+  color: #fff;
+  background: linear-gradient(135deg, #6366f1, #a855f7 55%, #ec4899);
+}
+.fiche-coloree .fiche-head .fiche-subtitle,
+.fiche-coloree .fiche-head .fiche-input::placeholder {
+  color: rgb(255 255 255 / 0.85);
+}
+.fiche-coloree .fiche-bloc {
+  border-radius: 1rem;
+  padding: 0.75rem 0.95rem 0.85rem;
+  background: color-mix(in srgb, var(--c) 13%, var(--paper));
+  border: 1.5px solid color-mix(in srgb, var(--c) 35%, transparent);
+}
+.fiche-coloree .fiche-label {
+  display: inline-block;
+  padding: 0.12rem 0.55rem;
+  border-radius: 999px;
+  background: var(--c);
+  color: #fff;
+}
+@media (min-width: 768px) {
+  .fiche-coloree:not(.fiche-editing) .fiche-blocs {
+    display: block;
+    columns: 2;
+    column-gap: 0.85rem;
+  }
+  .fiche-coloree:not(.fiche-editing) .fiche-bloc {
+    margin-bottom: 0.85rem;
+  }
+  .fiche-coloree:not(.fiche-editing) .fiche-bloc[data-type="retenir"] {
+    column-span: all;
+  }
+}
+
+/* Style « minimaliste » : typographie soignée, filets fins */
+.fiche-minimaliste {
+  font-family: "Iowan Old Style", "Palatino Linotype", Palatino, Georgia, serif;
+}
+.fiche-minimaliste .fiche-head {
+  text-align: center;
+  padding-bottom: 1rem;
+}
+.fiche-minimaliste .fiche-title {
+  font-weight: 700;
+  font-size: 1.8rem;
+  text-align: inherit;
+}
+.fiche-minimaliste .fiche-subtitle {
+  font-style: italic;
+  text-align: inherit;
+}
+.fiche-minimaliste .fiche-blocs {
+  gap: 0;
+}
+.fiche-minimaliste .fiche-bloc {
+  padding: 0.8rem 0;
+  border-top: 1px solid var(--line);
+}
+.fiche-minimaliste .fiche-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  color: var(--muted);
+  font-family: var(--font-sans);
+}
+.fiche-minimaliste .fiche-label::before {
+  content: "";
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 999px;
+  background: var(--c);
+}
+.fiche-minimaliste .fiche-legend {
+  justify-content: center;
+  font-family: var(--font-sans);
+}
+
+/* Style « cahier » : feuille lignée, marge rouge, écriture manuscrite */
+.fiche-cahier {
+  --paper: #fffef7;
+  --rule: #c9dcf3;
+  --margin: #f2a3a3;
+  font-family: "Patrick Hand", "Segoe Print", "Comic Sans MS", cursive;
+  font-size: 1.12rem;
+  line-height: 28px;
+  padding-left: 3.25rem;
+  border-radius: 0.5rem;
+  background-color: var(--paper);
+  background-image: repeating-linear-gradient(to bottom, transparent 0, transparent 27px, var(--rule) 27px, var(--rule) 28px);
+  background-position: 0 1.25rem;
+}
+.dark .fiche-cahier {
+  --paper: #171b29;
+  --rule: #26314a;
+  --margin: #7f2b3a;
+}
+.fiche-cahier::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 2.4rem;
+  border-left: 2px solid var(--margin);
+}
+@media (min-width: 640px) {
+  .fiche-cahier {
+    padding-left: 4.5rem;
+  }
+  .fiche-cahier::before {
+    left: 3.25rem;
+  }
+}
+.fiche-cahier .fiche-title {
+  font-size: 2rem;
+  line-height: 56px;
+  font-weight: 400;
+  color: #1d4ed8;
+  text-decoration: underline;
+  text-decoration-thickness: 2px;
+  text-underline-offset: 6px;
+}
+.dark .fiche-cahier .fiche-title {
+  color: #93c5fd;
+}
+.fiche-cahier .fiche-subtitle,
+.fiche-cahier .fiche-bloc-contenu,
+.fiche-cahier .fiche-bloc-titre {
+  line-height: 28px;
+}
+.fiche-cahier .fiche-blocs {
+  gap: 0.5rem;
+}
+.fiche-cahier .fiche-label {
+  font-family: var(--font-sans);
+  padding: 0 0.35rem;
+  border-radius: 0.2rem;
+  color: var(--ink);
+  background: color-mix(in srgb, var(--c) 28%, transparent);
+}
+.fiche-cahier .fiche-bloc-titre {
+  font-weight: 400;
+  font-size: 1.3rem;
+  color: var(--c);
+}
+.dark .fiche-cahier .fiche-bloc-titre {
+  color: color-mix(in srgb, var(--c) 60%, white);
+}
+.fiche-cahier .fiche-bloc[data-type="retenir"] {
+  outline: 2px dashed var(--c);
+  outline-offset: 4px;
+  border-radius: 0.4rem;
+}
+
+/* ---------- Flashcards : carte qui se retourne ---------- */
+.flip {
+  perspective: 1400px;
+}
+.flip-inner {
+  display: grid;
+  transition: transform 0.5s cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-style: preserve-3d;
+}
+.flip.is-flipped .flip-inner {
+  transform: rotateY(180deg);
+}
+.flip-face {
+  grid-area: 1 / 1;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+.flip-back {
+  transform: rotateY(180deg);
+}
+
+/* ---------- Impression (A4) ---------- */
+@media print {
+  @page {
+    size: A4;
+    margin: 12mm 12mm 14mm;
+  }
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+  }
+  html,
+  body,
+  #root {
+    background: #fff !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+  .no-print {
+    display: none !important;
+  }
+  .print-page {
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+  }
+  .fiche {
+    border: 0 !important;
+    border-radius: 0 !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    font-size: 10.5pt;
+  }
+  .fiche-cahier {
+    padding-left: 3rem !important;
+  }
+  .fiche-cahier::before {
+    left: 2.2rem !important;
+  }
+  .fiche-head,
+  h1,
+  h2,
+  h3 {
+    break-after: avoid;
+    page-break-after: avoid;
+  }
+  .fiche-bloc,
+  .print-avoid {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  .fiche-coloree .fiche-blocs {
+    display: block !important;
+    columns: 2;
+    column-gap: 0.7rem;
+  }
+  .fiche-coloree .fiche-bloc {
+    margin-bottom: 0.7rem;
+  }
+  .fiche-coloree .fiche-bloc[data-type="retenir"] {
+    column-span: all;
+  }
+}
 
 @media (prefers-reduced-motion: reduce) {
   *,

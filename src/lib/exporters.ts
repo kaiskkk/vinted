@@ -19,7 +19,7 @@ export function slugify(name: string) {
   );
 }
 
-function download(href: string, filename: string) {
+export function download(href: string, filename: string) {
   const a = document.createElement("a");
   a.href = href;
   a.download = filename;

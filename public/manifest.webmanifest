@@ -1,8 +1,8 @@
 {
   "id": "/",
-  "name": "ecoleduc — cartes mentales",
+  "name": "ecoleduc — outil d'étude",
   "short_name": "ecoleduc",
-  "description": "Tes idées, rangées en cartes mentales claires et colorées — au doigt ou à la souris.",
+  "description": "Cartes mentales, fiches, révision, quiz et flashcards à partir de tes cours, avec l'aide de Claude.",
   "lang": "fr",
   "dir": "ltr",
   "start_url": "/",

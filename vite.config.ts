@@ -28,7 +28,10 @@ function serviceWorker(): Plugin {
       const publicFiles = listFiles(publicDir);
       const files = [
         "/",
-        ...Object.keys(bundle).filter((f) => f !== "index.html" && !f.endsWith(".map")).map((f) => `/${f}`),
+        ...Object.keys(bundle)
+          // Le lecteur de PDF (lourd) et l'ancien format de police ne sont téléchargés qu'au besoin.
+          .filter((f) => f !== "index.html" && !f.endsWith(".map") && !f.endsWith(".woff") && !/^assets\/pdf[-.]/.test(f))
+          .map((f) => `/${f}`),
         ...publicFiles.map((f) => `/${f}`),
       ];
       const hash = createHash("sha256").update(files.join("\n"));

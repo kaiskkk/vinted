@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createApp } from "./app";
 import { MODEL, createClaudeGenerator, hasCredentials } from "./claude";
+import { createStudyAI } from "./study";
 
 dotenv.config({ quiet: true });
 
@@ -12,6 +13,7 @@ const production = process.argv.includes("--production") || process.env.NODE_ENV
 
 const app = createApp({
   generator: createClaudeGenerator(),
+  study: createStudyAI(),
   hasApiKey: hasCredentials,
   accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
   staticDir: production ? path.resolve(here, "../dist") : undefined,

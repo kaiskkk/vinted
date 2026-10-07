@@ -3,10 +3,14 @@
 import type { Config } from "@netlify/functions";
 import { createApi, createFetchHandler } from "../../server/api";
 import { createClaudeGenerator, hasCredentials } from "../../server/claude";
+import { createStudyAI } from "../../server/study";
+
+// Netlify coupe une fonction après 60 s : on abandonne avant pour renvoyer un message clair.
+const limits = { timeoutMs: 50_000, maxRetries: 0 };
 
 const api = createApi({
-  // Netlify coupe une fonction après 60 s : on abandonne avant pour renvoyer un message clair.
-  generator: createClaudeGenerator({ timeoutMs: 50_000, maxRetries: 0 }),
+  generator: createClaudeGenerator(limits),
+  study: createStudyAI(limits),
   hasApiKey: hasCredentials,
   accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
   log: (message) => console.log(message),
@@ -15,5 +19,5 @@ const api = createApi({
 export default createFetchHandler(api);
 
 export const config: Config = {
-  path: ["/api/health", "/api/generate", "/api/expand"],
+  path: ["/api/health", "/api/generate", "/api/expand", "/api/etude", "/api/chat", "/api/simplifier", "/api/lire"],
 };

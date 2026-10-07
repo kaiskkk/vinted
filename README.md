@@ -1,15 +1,25 @@
-# ecoleduc — cartes mentales
+# ecoleduc — outil d'étude
 
-Une application web personnelle pour créer des cartes mentales, à la main ou avec l'aide de Claude. Elle marche aussi bien sur ordinateur que sur téléphone, et s'installe comme une vraie appli (PWA), utilisable même sans connexion.
+Une application web personnelle pour apprendre et réviser ses cours, avec l'aide de Claude : cartes mentales, fiches, fiches de révision, quiz, flashcards et résumés. Elle marche aussi bien sur ordinateur que sur téléphone, et s'installe comme une vraie appli (PWA), utilisable même sans connexion.
+
+- **Accueil** : une tuile par mode (Général, Carte mentale, Fiches, Révision, Quiz, Flashcards), ce qui est prévu **aujourd'hui** (cartes à revoir, séances du planning) et **Mes documents récents** (tous les modes), avec recherche et filtre par type.
+- **Général** : ajoute ton cours une seule fois (le coller, écrire un sujet, ou importer un **PDF**, un **fichier texte** ou une **photo**), puis demande à Claude une carte mentale, une fiche, une fiche de révision, un quiz, des flashcards ou un résumé. Tout est rangé dans un **classeur**, avec une **discussion** pour poser tes questions sur le cours.
+- **Carte mentale** : l'éditeur de cartes, inchangé (canevas infini, boîte à outils, génération avec Claude, export PNG / JSON…).
+- **Fiches** : fiche structurée (notions clés, définitions, dates, formules, exemples, pièges, à retenir) avec un **code couleur** par type d'information, **4 styles** (classique, colorée, minimaliste, cahier), entièrement **modifiable** (texte, couleurs, ajout, déplacement et suppression de blocs, annuler / rétablir), **impression A4** propre et **export PDF**.
+- **Révision** : fiche ultra-condensée sur une page, « Les 10 choses à savoir absolument », pièges à éviter, et **planning de révision** jour par jour jusqu'à la date de l'examen (calculé sur l'appareil, sans Claude).
+- **Quiz** : QCM avec nombre de questions et difficulté au choix, correction immédiate expliquée, score final, liste des questions ratées, « Refaire les ratées » et « Flashcards de mes erreurs ».
+- **Flashcards** : cartes recto / verso qui se retournent d'un tap, « Je sais » / « À revoir », **répétition espacée** (boîtes de Leitner) et statistiques de progression par paquet.
+- **Partout** : niveau scolaire (collège, lycée, études supérieures) pour adapter le vocabulaire de Claude, bouton **« Plus simple »** (« Explique-moi plus simplement ») sur chaque bloc, sauvegarde automatique, **sauvegarde complète** de toutes les données en un fichier JSON (et restauration), thème **sombre / clair**, interface pensée pour le téléphone.
+- **Erreurs** : chaque génération affiche un chargement, puis, en cas de problème, un message clair en français avec **Réessayer**.
+
+### L'éditeur de cartes mentales
 
 - **Canevas infini** : zoom (molette ou pincement à deux doigts), déplacement (souris ou un doigt), mini-carte sur ordinateur, boutons « Recentrer la carte » et « Organiser automatiquement ».
-- **Édition directe** : double-clic (ou appui long sur téléphone) pour modifier, bouton **+** / `Tab` pour un enfant, `Entrée` pour un frère, glisser-déposer des nœuds, liens tirés à la main, `Suppr` pour effacer (avec une petite animation).
-- **Annuler / Rétablir** (`Ctrl + Z` / `Ctrl + Y`, ou ↶ ↷ en haut) et **sauvegarde automatique** à chaque modification, signalée par une discrète pastille « Sauvegardé ».
-- **Boîte à outils** : 6 formes (rond, rectangle, arrondi, losange, nuage, post-it), couleurs de fond et de texte (palette + couleur libre), emojis, taille du texte, gras, italique, style des liens (droit, courbe, en angle, pointillé, flèche). Sur ordinateur, chaque élément peut être **glissé** sur le canevas ou sur un nœud ; sur téléphone, la boîte à outils s'ouvre depuis le bas de l'écran.
-- **Génération avec Claude** : décris ta carte (« fais-moi une carte mentale sur mes objectifs pour devenir footballeur pro ») et Claude la construit, disposée automatiquement en arbre autour du centre. Tu peux **remplacer** la carte ou **ajouter** des branches. **Développer avec Claude** (clic droit ou appui long sur un nœud) propose 3 à 6 sous-idées. En cas d'échec : message clair en français et bouton **Réessayer**.
-- **Accueil** : recherche dans tes cartes, tri par date ou par nom, miniature de chaque carte, renommage, suppression avec confirmation (et « Annuler » juste après).
-- **Export** en PNG (haute définition, toute la carte) et **export / import** en JSON.
-- Mode **sombre / clair** qui suit le réglage du téléphone ou de l'ordinateur ; un bouton permet de forcer l'un ou l'autre.
+- **Édition directe** : double-clic (ou appui long sur téléphone) pour modifier, bouton **+** / `Tab` pour un enfant, `Entrée` pour un frère, glisser-déposer des nœuds, liens tirés à la main, `Suppr` pour effacer.
+- **Annuler / Rétablir** (`Ctrl + Z` / `Ctrl + Y`, ou ↶ ↷ en haut) et **sauvegarde automatique**.
+- **Boîte à outils** : 6 formes, couleurs de fond et de texte, emojis, taille du texte, gras, italique, style des liens. Sur ordinateur, chaque élément peut être **glissé** sur le canevas ou sur un nœud.
+- **Génération avec Claude** : décris ta carte et Claude la construit ; tu peux **remplacer** la carte ou **ajouter** des branches, et **développer** un nœud (clic droit ou appui long).
+- **Export** en PNG et **export / import** en JSON.
 
 ## Prérequis
 
@@ -93,7 +103,29 @@ L'icône ecoleduc apparaît sur l'écran d'accueil et s'ouvre en plein écran, s
 
 ## Utilisation
 
-### Sur téléphone
+### Le parcours conseillé
+
+1. Choisis ton **niveau** en haut de l'accueil (Collège, Lycée ou Études sup).
+2. Ouvre **Général → Nouveau classeur**, colle ton cours (ou importe un PDF, une photo de ton cahier, ou écris juste un sujet), puis **Créer le classeur**.
+3. Dans le classeur, touche ce que tu veux préparer : **Carte mentale**, **Fiche de cours**, **Fiche de révision**, **Quiz**, **Flashcards** ou **Résumé**. Pour le quiz et les flashcards, choisis le nombre (et la difficulté).
+4. Pose tes questions dans **Questions sur le cours** : Claude répond à partir de ton cours.
+5. Prévois un **planning de révision** depuis le classeur ou le mode Révision.
+
+Les modes Fiches, Révision, Quiz et Flashcards marchent aussi seuls : **Créer avec Claude** demande un cours ou un sujet (ou un classeur existant). **Fiche vierge** et **Paquet vide** permettent d'écrire soi-même, sans Claude.
+
+### Fiches
+
+- **Style** : Classique, Colorée, Minimaliste ou Cahier (le choix est gardé pour chaque fiche).
+- **Modifier** : titre, type et couleur de chaque bloc (pastille ronde), ↑ ↓ pour déplacer, corbeille pour supprimer (« Annuler » juste après, ou `Ctrl + Z`), **Ajouter un bloc**. Dans le texte : `- ` en début de ligne pour une liste, `**gras**`, `==surligné==`.
+- **Imprimer** / **PDF** : la fiche sort sur une feuille A4 blanche, sans boutons ni menus, couleurs conservées, et aucun bloc n'est coupé entre deux pages. Pour le PDF, choisis « Enregistrer au format PDF » comme imprimante.
+- 💡 **Plus simple** sur un bloc : Claude le réexplique avec des mots de tous les jours.
+
+### Quiz et flashcards
+
+- **Quiz** : touche une réponse (ou `1`–`4` / `A`–`D` au clavier) ; la correction et l'explication s'affichent aussitôt. À la fin : score, questions ratées, « Refaire les ratées », « Flashcards de mes erreurs ». Le crayon en haut permet de corriger ou d'ajouter des questions.
+- **Flashcards** : « Réviser maintenant » propose les cartes du jour ; touche la carte pour la retourner (`Espace` au clavier), puis **Je sais** (`→`) ou **À revoir** (`←`). Une carte sue revient plus tard (1, 3, 7, 14 puis 30 jours) ; une carte à revoir repasse en fin de séance et revient dès le lendemain.
+
+### Sur téléphone (cartes mentales)
 
 | Action | Geste |
 |---|---|
@@ -139,7 +171,8 @@ Pendant que tu écris dans un nœud, la carte se décale pour que le texte reste
 
 ### Sauvegarde, export et import
 
-- Les cartes sont enregistrées automatiquement dans le **localStorage** du navigateur. Elles sont donc propres à ce navigateur et à ce profil : vider les données du site les efface. **Exporte en JSON** les cartes auxquelles tu tiens.
+- Tout est enregistré automatiquement dans le **localStorage** du navigateur : c'est propre à ce navigateur et à ce profil, et vider les données du site efface tout.
+- **Accueil → Mes données → Sauvegarder tout (JSON)** télécharge un fichier avec toutes tes cartes, tous tes documents et classeurs. **Restaurer une sauvegarde** les remet (sur le même appareil ou un autre) : rien n'est supprimé, et pour un même document la version la plus récente est gardée.
 - **Exporter → Image PNG** : toute la carte (pas seulement la partie visible), en haute définition, sur le fond du thème courant.
 - **Exporter → Fichier JSON** : la carte complète, réimportable.
 - **Import JSON** : depuis l'accueil (crée une nouvelle carte) ou depuis l'éditeur (remplace le contenu de la carte, annulable avec `Ctrl + Z`). Les fichiers au format Claude `{ "titre": "...", "noeuds": [...] }` sont aussi acceptés et disposés automatiquement.
@@ -159,11 +192,18 @@ Pendant que tu écris dans un nœud, la carte se décale pour que le texte reste
 Navigateur (React)                Serveur Express (local)            API Claude
                                   ou fonction Netlify (en ligne)
 ──────────────────                ──────────────────────────────     ──────────
-Barre « Décris ta carte… »  ──►  POST /api/generate  ──(clé API)──►  claude-sonnet-5-5
-Clic droit « Développer »   ──►  POST /api/expand                     (sortie JSON structurée)
-                            ◄──  { titre, noeuds } nettoyé       ◄──
-Disposition en arbre (dagre), nœuds et liens React Flow
+Carte mentale               ──►  POST /api/generate, /api/expand ──(clé API)──►  claude-sonnet-5-5
+Fiche, révision, quiz…      ──►  POST /api/etude                          (sortie JSON structurée)
+Questions sur le cours      ──►  POST /api/chat
+« Plus simple »             ──►  POST /api/simplifier
+Photo / PDF scanné          ──►  POST /api/lire
+                            ◄──  réponse vérifiée et nettoyée        ◄──
 ```
+
+- Chaque mode demande à Claude un **JSON structuré** (schéma Zod), puis le serveur le **vérifie et le nettoie** (`shared/study.ts`) avant de l'envoyer au navigateur : blocs vides retirés, types inconnus corrigés, réponses de QCM en double retirées en suivant la bonne réponse, nombre de questions plafonné… Une réponse inutilisable donne un message clair, jamais un écran cassé.
+- Les **PDF avec du texte** sont lus directement dans le navigateur (pdf.js, téléchargé seulement au premier import). Les **photos** et les **PDF scannés** sont réduits puis envoyés à Claude, page par page, pour être transcrits.
+- Le cours est envoyé tel quel (jusqu'à 60 000 caractères, environ 15 000 mots) et marqué pour le **cache de prompt** d'Anthropic : plusieurs demandes sur le même cours coûtent moins cher.
+- Le **planning de révision** est calculé sur l'appareil : chaque chapitre est appris un jour, puis revu à J+1, J+3 et J+7, la veille de l'examen est réservée au bilan.
 
 - **La clé API ne quitte jamais le serveur.** Le front appelle `/api/...` ; en développement, Vite relaie ces appels vers Express (voir `vite.config.ts`) ; en ligne, Netlify les envoie à la fonction `netlify/functions/api.ts`. Le fichier `.env` est ignoré par Git.
 - Claude répond via une **sortie structurée** (schéma Zod) au format `{ "titre": "...", "noeuds": [{ "id", "texte", "parentId", "couleur", "emoji" }] }`. Le serveur nettoie ensuite la réponse : ids en double, parents inconnus, cycles, couleurs invalides, nœuds déjà existants recopiés.
@@ -177,17 +217,22 @@ server/
   index.ts        démarrage du serveur local (lit .env)
   app.ts          serveur Express (local)
   api.ts          logique de l'API : validation, code d'accès, messages d'erreur en français
-  claude.ts       appel à l'API Claude (modèle, consignes, schéma JSON)
+  claude.ts       cartes mentales : appel à Claude (modèle, consignes, schéma JSON)
+  study.ts        fiches, révision, quiz, flashcards, résumé, discussion, « plus simple », lecture de photos
 netlify/
   functions/api.ts  la même API, sous forme de fonction Netlify (en ligne)
 shared/
-  aiMap.ts        format JSON de Claude et nettoyage (utilisé par le serveur et le front)
+  aiMap.ts        format des cartes de Claude et nettoyage
+  study.ts        formats des documents d'étude et nettoyage (serveur et front)
 src/
-  pages/          Home.tsx (accueil), Editor.tsx (éditeur, chargé à la demande)
-  components/     nœud personnalisé, lien « flottant », boîte à outils, barre Claude, panneaux du bas,
-                  barre d'actions, contrôles de carte, menus, notifications, installation de l'appli
-  hooks/          historique annuler/rétablir, thème (suit le système), mise en page (ordinateur / téléphone), navigation
-  lib/            disposition (dagre), tailles des nœuds, conversions, stockage + miniatures, export PNG/JSON, client API
+  pages/          Home (accueil), MindMaps (mode Carte mentale), Editor (éditeur de cartes),
+                  General et Classeur (mode Général), ModePage (Fiches, Révision, Quiz, Flashcards),
+                  DocPage + docs/ (fiche, révision, planning, quiz, flashcards, résumé)
+  components/     éditeur de cartes (nœuds, liens, boîte à outils…), import du cours, listes, « Plus simple »,
+                  chargement / erreur Claude, en-têtes, panneaux du bas, notifications
+  hooks/          navigation, thème, document avec annuler/rétablir et sauvegarde, historique des cartes
+  lib/            stockage (cartes, documents, classeurs), sauvegarde complète, planning, répétition espacée,
+                  lecture des PDF et photos, génération, disposition des cartes, export, client API
 public/
   manifest.webmanifest, icons/   appli installable (nom, couleurs, icônes)
 pwa/
@@ -195,7 +240,7 @@ pwa/
   *.svg           sources des icônes « maskable » et iPhone
 ```
 
-- **Stockage** : chaque carte reste enregistrée au même format qu'avant (`mm-map:<id>`). L'index de l'accueil (`mm-index`) reçoit en plus une miniature, calculée automatiquement pour les cartes créées avec une version précédente.
+- **Stockage** : chaque carte reste enregistrée au même format qu'avant (`mm-map:<id>`, index `mm-index`) : les cartes déjà créées s'ouvrent telles quelles. Les nouveaux documents sont dans `ed-doc:<id>` (index `ed-docs`), les classeurs dans `ed-classeur:<id>` (index `ed-classeurs`), le classeur de chaque carte dans `ed-liens-cartes` et le niveau dans `ed-niveau`.
 - **Netlify** : pas de redirection nécessaire, car l'appli utilise des adresses en `#/…`. `netlify.toml` règle seulement le cache (service worker toujours vérifié, fichiers versionnés gardés longtemps).
 
 ## Dépannage
@@ -210,4 +255,8 @@ pwa/
 | « Hors connexion » | Normal sans internet : tes cartes restent utilisables, Claude reviendra avec la connexion |
 | L'appli installée n'affiche pas la dernière version | Ferme-la complètement puis rouvre-la : la mise à jour se fait à l'ouverture |
 | « Trop de demandes » | Limite de débit de l'API atteinte : patiente quelques secondes |
+| « La réponse de Claude a été coupée » | Demande moins de questions ou de cartes, ou découpe ton cours par chapitre |
+| « Aucun texte lisible » sur une photo | Reprends la photo bien à plat, nette et éclairée |
+| Un PDF scanné n'est lu qu'en partie | Seules les 15 premières pages sont lues : importe-le par morceaux ou en photos |
+| L'impression montre les boutons ou un fond sombre | Utilise les boutons **Imprimer** / **PDF** de la fiche (ou `Ctrl + P`) : la mise en page A4 s'applique automatiquement |
 | Port 5173 ou 3001 déjà utilisé | Ferme l'autre programme, ou change `PORT` (et le proxy de `vite.config.ts`) |
