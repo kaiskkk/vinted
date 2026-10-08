@@ -3,18 +3,19 @@ import { DIFFICULTES, type Difficulte, type TypeEtude } from "../../shared/study
 import { DocList } from "../components/DocList";
 import { CalendarIcon, ChevronRightIcon, PencilIcon, SearchIcon, SparklesIcon } from "../components/Icons";
 import { MODE_INFO } from "../components/looks";
+import { MicButton } from "../components/MicButton";
 import { btn } from "../components/Modal";
 import { SourcePicker, emptySource, hasSource, type SourceValue } from "../components/SourcePicker";
 import { useToast } from "../components/Toasts";
 import { ClaudeTaskOverlay, EmptyState, NiveauPicker, Page, PageHeader, Segmented, card, input, useClaudeTask, useNiveau } from "../components/ui";
 import { goHome, openDoc, type Mode } from "../hooks/useHashRoute";
-import { blankDeck, blankFiche, listClasseurs, loadClasseur, newPlanning, saveDoc, touchClasseur, type DocType } from "../lib/docs";
+import { blankDeck, blankFiche, blankFrise, listClasseurs, loadClasseur, newPlanning, saveDoc, touchClasseur, type DocType } from "../lib/docs";
 import { fold } from "../lib/format";
 import { generateDoc } from "../lib/generate";
 import { listLibrary } from "../lib/library";
 import { addDays, buildPlanning, parseChapitres, today } from "../lib/planning";
 
-type StudyMode = Exclude<Mode, "general" | "cartes">;
+type StudyMode = Exclude<Mode, "general" | "cartes" | "redaction">;
 
 interface ModeConfig {
   kinds: DocType[];
@@ -67,6 +68,14 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
     defaultNombre: 20,
     empty: "Des cartes recto / verso à retourner d'un tap, revues au bon moment grâce à la répétition espacée.",
   },
+  frise: {
+    kinds: ["frise"],
+    type: "frise",
+    loading: "L'IA trace ta frise…",
+    createLabel: "Créer une frise avec l'IA",
+    createHint: "Les événements et les grandes périodes, à partir d'un thème ou de ton cours.",
+    empty: "Une frise chronologique claire, modifiable et prête à imprimer, à partir d'un thème ou de ton cours.",
+  },
 };
 
 type View = "list" | "claude" | "planning";
@@ -87,7 +96,7 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
 
   const createBlank = () => {
     try {
-      const doc = mode === "fiches" ? blankFiche() : blankDeck();
+      const doc = mode === "fiches" ? blankFiche() : mode === "frise" ? blankFrise() : blankDeck();
       saveDoc(doc);
       openDoc(doc.id);
     } catch (err) {
@@ -109,10 +118,15 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
       onClick: () => setView("planning"),
     });
   }
-  if (mode === "fiches" || mode === "flashcards") {
+  if (mode === "fiches" || mode === "flashcards" || mode === "frise") {
     actions.push({
-      label: mode === "fiches" ? "Fiche vierge" : "Paquet vide",
-      hint: mode === "fiches" ? "Écris ta fiche toi-même, bloc par bloc." : "Écris tes propres cartes recto / verso.",
+      label: mode === "fiches" ? "Fiche vierge" : mode === "frise" ? "Frise vierge" : "Paquet vide",
+      hint:
+        mode === "fiches"
+          ? "Écris ta fiche toi-même, bloc par bloc."
+          : mode === "frise"
+            ? "Ajoute toi-même les dates et les périodes."
+            : "Écris tes propres cartes recto / verso.",
       icon: <PencilIcon size={22} />,
       onClick: createBlank,
     });
@@ -298,14 +312,17 @@ function ClaudeForm({ mode, onCancel }: { mode: StudyMode; onCancel: () => void 
             <label className="block text-sm font-semibold" htmlFor="consigne">
               Une précision ? <span className="font-normal text-slate-500 dark:text-slate-400">(facultatif)</span>
             </label>
-            <input
-              id="consigne"
-              value={consigne}
-              onChange={(e) => setConsigne(e.target.value.slice(0, 300))}
-              placeholder="Ex. insiste sur les dates, seulement la partie 2…"
-              enterKeyHint="done"
-              className={`${input} mt-2 h-12`}
-            />
+            <div className="mt-2 flex items-center gap-1">
+              <input
+                id="consigne"
+                value={consigne}
+                onChange={(e) => setConsigne(e.target.value.slice(0, 300))}
+                placeholder={mode === "frise" ? "Ex. de 1789 à 1815, seulement les batailles…" : "Ex. insiste sur les dates, seulement la partie 2…"}
+                enterKeyHint="done"
+                className={`${input} h-12`}
+              />
+              <MicButton value={consigne} max={300} onChange={setConsigne} label="Dicter ta précision" />
+            </div>
           </section>
 
           <div className="flex flex-col-reverse gap-3 border-t border-slate-200 pt-5 sm:flex-row sm:items-center dark:border-slate-800">

@@ -1,5 +1,19 @@
 import type { AiMap } from "../../shared/aiMap";
-import type { Difficulte, FicheIA, FlashcardsIA, Niveau, QuizIA, ResumeIA, RevisionIA, TypeEtude } from "../../shared/study";
+import type {
+  Difficulte,
+  FicheIA,
+  FlashcardsIA,
+  FriseIA,
+  Niveau,
+  PlanIA,
+  QuizIA,
+  RelectureIA,
+  ResumeIA,
+  RevisionIA,
+  TypeDevoir,
+  TypeEtude,
+} from "../../shared/study";
+import { authToken } from "./account";
 
 const CODE_KEY = "mm-code-acces";
 
@@ -22,6 +36,7 @@ export interface Health {
   modele: string;
   cleApi: boolean;
   codeRequis?: boolean;
+  comptes?: boolean;
 }
 
 type AskCode = (wrong: boolean) => Promise<string | null>;
@@ -48,13 +63,19 @@ function storeCode(code: string) {
   }
 }
 
-async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt = 0): Promise<T> {
+async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt = 0, refreshToken = false): Promise<T> {
   const code = storedCode();
+  // Comptes activés : le jeton de connexion prouve au serveur que l'élève est inscrit.
+  const token = await authToken(refreshToken);
   let res: Response;
   try {
     res = await fetch(url, {
       method: "POST",
-      headers: { "Content-Type": "application/json", ...(code ? { "X-Code-Acces": code } : {}) },
+      headers: {
+        "Content-Type": "application/json",
+        ...(code ? { "X-Code-Acces": code } : {}),
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
       body: JSON.stringify(body),
       signal,
     });
@@ -68,6 +89,11 @@ async function post<T>(url: string, body: unknown, signal?: AbortSignal, attempt
     json = await res.json();
   } catch {
     // Réponse non JSON : serveur arrêté (proxy Vite) ou fonction en ligne coupée pour dépassement de délai.
+  }
+
+  // Jeton refusé (expiré, horloge décalée…) : un nouveau jeton, puis un seul nouvel essai.
+  if (res.status === 401 && json?.code === "CONNEXION_REQUISE" && token && !refreshToken) {
+    return post<T>(url, body, signal, attempt, true);
   }
 
   // Site protégé par un code d'accès : on le demande, puis on réessaie.
@@ -115,7 +141,21 @@ interface EtudeResults {
   quiz: QuizIA;
   flashcards: FlashcardsIA;
   resume: ResumeIA;
+  frise: FriseIA;
 }
+
+export interface DevoirInfo {
+  typeDevoir: TypeDevoir;
+  sujet: string;
+  matiere?: string;
+  document?: string;
+}
+
+export const proposePlan = (devoir: DevoirInfo, niveau: Niveau, signal?: AbortSignal) =>
+  post<PlanIA>("/api/redaction", { mode: "plan", ...devoir, niveau }, signal);
+
+export const relireTexte = (devoir: DevoirInfo, texte: string, niveau: Niveau, signal?: AbortSignal) =>
+  post<RelectureIA>("/api/redaction", { mode: "relecture", ...devoir, texte, niveau }, signal);
 
 export const generateEtude = <T extends TypeEtude>(type: T, source: SourceEtude, niveau: Niveau, options: EtudeOptions = {}, signal?: AbortSignal) =>
   post<EtudeResults[T]>("/api/etude", { type, ...source, niveau, ...options }, signal);

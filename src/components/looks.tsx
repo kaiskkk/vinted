@@ -2,7 +2,18 @@
 import type { ReactNode } from "react";
 import type { Mode } from "../hooks/useHashRoute";
 import type { ItemKind } from "../lib/library";
-import { AlignLeftIcon, CalendarIcon, CardsIcon, FileTextIcon, FolderIcon, NetworkIcon, QuizIcon, TargetIcon } from "./Icons";
+import {
+  AlignLeftIcon,
+  CalendarIcon,
+  CardsIcon,
+  FileTextIcon,
+  FolderIcon,
+  NetworkIcon,
+  NotebookPenIcon,
+  QuizIcon,
+  TargetIcon,
+  TimelineIcon,
+} from "./Icons";
 
 export interface Look {
   label: string;
@@ -55,6 +66,18 @@ const LOOKS = {
     text: "text-violet-600 dark:text-violet-300",
     shadow: "shadow-violet-500/30",
   },
+  frise: {
+    gradient: "from-teal-500 to-cyan-600",
+    soft: "bg-teal-50 text-teal-700 dark:bg-teal-500/15 dark:text-teal-300",
+    text: "text-teal-600 dark:text-teal-300",
+    shadow: "shadow-teal-500/30",
+  },
+  redaction: {
+    gradient: "from-red-500 to-orange-500",
+    soft: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+    text: "text-red-600 dark:text-red-300",
+    shadow: "shadow-red-500/30",
+  },
   resume: {
     gradient: "from-blue-500 to-indigo-500",
     soft: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
@@ -104,6 +127,18 @@ export const MODE_INFO: Record<Mode, ModeInfo> = {
     icon: (s = 22) => <CardsIcon size={s} />,
     description: "Mémorise avec la répétition espacée",
   },
+  frise: {
+    ...LOOKS.frise,
+    label: "Frise",
+    icon: (s = 22) => <TimelineIcon size={s} />,
+    description: "Les dates clés dans l'ordre, à imprimer",
+  },
+  redaction: {
+    ...LOOKS.redaction,
+    label: "Rédaction",
+    icon: (s = 22) => <NotebookPenIcon size={s} />,
+    description: "Problématique, plan et relecture de ton devoir",
+  },
 };
 
 export const KIND_LOOK: Record<ItemKind, Look> = {
@@ -115,6 +150,8 @@ export const KIND_LOOK: Record<ItemKind, Look> = {
   quiz: { ...LOOKS.quiz, label: "Quiz", icon: (s = 18) => <QuizIcon size={s} /> },
   flashcards: { ...LOOKS.flashcards, label: "Flashcards", icon: (s = 18) => <CardsIcon size={s} /> },
   resume: { ...LOOKS.resume, label: "Résumé", icon: (s = 18) => <AlignLeftIcon size={s} /> },
+  frise: { ...LOOKS.frise, label: "Frise", icon: (s = 18) => <TimelineIcon size={s} /> },
+  redaction: { ...LOOKS.redaction, label: "Devoir", icon: (s = 18) => <NotebookPenIcon size={s} /> },
 };
 
 /** Mode où l'on retombe en quittant un document qui n'est pas dans un classeur. */
@@ -127,6 +164,8 @@ export const MODE_OF_KIND: Record<ItemKind, Mode> = {
   quiz: "quiz",
   flashcards: "flashcards",
   resume: "general",
+  frise: "frise",
+  redaction: "redaction",
 };
 
 /** Pastille colorée avec l'icône d'un type. */

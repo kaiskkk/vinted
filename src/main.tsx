@@ -3,6 +3,8 @@ import { createRoot } from "react-dom/client";
 import "@xyflow/react/dist/style.css";
 import "./index.css";
 import App from "./App";
+import { AccountGate } from "./components/AccountGate";
+import { accountsEnabled } from "./lib/account";
 
 // iOS : empêche le pincement de zoomer toute la page (le canevas gère son propre zoom).
 for (const type of ["gesturestart", "gesturechange"]) {
@@ -36,6 +38,13 @@ if (import.meta.env.PROD && "serviceWorker" in navigator) {
 
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
-    <App />
+    {/* Comptes activés (VITE_FIREBASE_CONFIG) : connexion obligatoire. Sinon, le site fonctionne comme avant, sans compte. */}
+    {accountsEnabled ? (
+      <AccountGate>
+        <App />
+      </AccountGate>
+    ) : (
+      <App />
+    )}
   </StrictMode>,
 );

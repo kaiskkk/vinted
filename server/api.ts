@@ -4,8 +4,9 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { sanitizeAiMap, type AiMap } from "../shared/aiMap";
-import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeEtude, type TypeEtude } from "../shared/study";
+import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeEtude, sanitizePlan, sanitizeRelecture, type TypeEtude } from "../shared/study";
 import { MODEL, UserFacingError, type GenerateInput, type MindMapGenerator } from "./claude";
+import type { VerifyUser } from "./auth";
 import type { StudyAI } from "./study";
 
 /** Taille maximale d'une photo ou d'une page envoyée en base64 (≈ 3 Mo). */
@@ -76,6 +77,22 @@ const ChatBody = z
   })
   .refine(hasSource, NO_SOURCE);
 
+const RedactionBody = z
+  .object({
+    mode: z.enum(["plan", "relecture"]),
+    typeDevoir: z.enum(["dissertation", "commentaire", "expose", "redaction"]),
+    sujet: z
+      .string()
+      .trim()
+      .min(1, "Écris d'abord le sujet ou la consigne du devoir.")
+      .max(3000, "Le sujet est trop long (3000 caractères maximum)."),
+    matiere: z.string().max(100).optional(),
+    document: z.string().max(SOURCE_MAX, "Le document à commenter est trop long.").optional(),
+    texte: z.string().max(40_000, "Ton texte est trop long pour être relu en une fois (40 000 caractères maximum).").optional(),
+    niveau: Niveau,
+  })
+  .refine((b) => b.mode === "plan" || Boolean(b.texte?.trim()), { message: "Écris d'abord ton texte pour qu'il soit relu." });
+
 const SimplifierBody = z.object({
   texte: z.string().trim().min(1, "Il n'y a rien à expliquer.").max(5000, "Ce passage est trop long à simplifier."),
   contexte: z.string().max(500).optional(),
@@ -103,6 +120,13 @@ function limitCount(type: TypeEtude, doc: ReturnType<typeof sanitizeEtude>, nomb
 
 /** En-tête HTTP qui transporte le code d'accès du site. */
 export const ACCESS_CODE_HEADER = "x-code-acces";
+
+/** Ce que le serveur lit dans les en-têtes : code d'accès et jeton de connexion (« Bearer … »). */
+export interface Credentials {
+  code?: string | null;
+  authorization?: string | null;
+}
+const asCredentials = (c: Credentials | string | null | undefined): Credentials => (typeof c === "object" && c ? c : { code: c });
 
 export interface ApiResponse {
   status: number;
@@ -164,12 +188,32 @@ export interface ApiOptions {
   modelName?: () => string;
   /** Code exigé pour utiliser Claude (variable CODE_ACCES) ; aucun contrôle s'il est vide. */
   accessCode?: () => string | undefined;
+  /** Comptes élèves : vérifie le jeton de connexion ; absent, aucun compte n'est exigé. */
+  verifyUser?: VerifyUser;
   log?: (message: string) => void;
 }
 
-export function createApi({ generator, study, hasApiKey, modelName = () => MODEL, accessCode = () => undefined, log = () => {} }: ApiOptions) {
-  /** Renvoie une réponse d'erreur si le code d'accès est absent ou faux, sinon null. */
-  function checkAccess(provided: string | undefined | null): ApiResponse | null {
+export function createApi({
+  generator,
+  study,
+  hasApiKey,
+  modelName = () => MODEL,
+  accessCode = () => undefined,
+  verifyUser,
+  log = () => {},
+}: ApiOptions) {
+  /** Renvoie une réponse d'erreur si l'élève n'est pas connecté ou si le code d'accès est absent ou faux, sinon null. */
+  async function checkAccess(credentials: Credentials | string | null | undefined): Promise<ApiResponse | null> {
+    const { code: provided, authorization } = asCredentials(credentials);
+    if (verifyUser) {
+      const token = /^Bearer\s+(\S+)$/i.exec(authorization?.trim() ?? "")?.[1];
+      if (!token) return { status: 401, body: { erreur: "Connecte-toi à ton compte pour utiliser l'IA.", code: "CONNEXION_REQUISE" } };
+      try {
+        await verifyUser(token);
+      } catch {
+        return { status: 401, body: { erreur: "Ta session a expiré : reconnecte-toi puis réessaie.", code: "CONNEXION_REQUISE" } };
+      }
+    }
     const expected = accessCode();
     if (!expected) return null;
     if (!provided) {
@@ -212,11 +256,11 @@ export function createApi({ generator, study, hasApiKey, modelName = () => MODEL
   async function handle<T>(
     name: string,
     body: unknown,
-    code: string | undefined | null,
+    code: Credentials | string | undefined | null,
     schema: z.ZodType<T>,
     work: (input: T, ai: StudyAI) => Promise<unknown>,
   ): Promise<ApiResponse> {
-    const denied = checkAccess(code);
+    const denied = await checkAccess(code);
     if (denied) return denied;
     const parsed = schema.safeParse(body);
     if (!parsed.success) return badRequest(parsed.error);
@@ -235,19 +279,22 @@ export function createApi({ generator, study, hasApiKey, modelName = () => MODEL
 
   return {
     health(): ApiResponse {
-      return { status: 200, body: { ok: true, modele: modelName(), cleApi: hasApiKey(), codeRequis: Boolean(accessCode()) } };
+      return {
+        status: 200,
+        body: { ok: true, modele: modelName(), cleApi: hasApiKey(), codeRequis: Boolean(accessCode()), comptes: Boolean(verifyUser) },
+      };
     },
 
-    async generate(body: unknown, code?: string | null): Promise<ApiResponse> {
-      const denied = checkAccess(code);
+    async generate(body: unknown, code?: Credentials | string | null): Promise<ApiResponse> {
+      const denied = await checkAccess(code);
       if (denied) return denied;
       const parsed = GenerateBody.safeParse(body);
       if (!parsed.success) return badRequest(parsed.error);
       return run(parsed.data);
     },
 
-    async expand(body: unknown, code?: string | null): Promise<ApiResponse> {
-      const denied = checkAccess(code);
+    async expand(body: unknown, code?: Credentials | string | null): Promise<ApiResponse> {
+      const denied = await checkAccess(code);
       if (denied) return denied;
       const parsed = ExpandBody.safeParse(body);
       if (!parsed.success) return badRequest(parsed.error);
@@ -258,7 +305,7 @@ export function createApi({ generator, study, hasApiKey, modelName = () => MODEL
       return run({ mode: "expand", carte, nodeId });
     },
 
-    etude: (body: unknown, code?: string | null) =>
+    etude: (body: unknown, code?: Credentials | string | null) =>
       handle(`étude ${(body as { type?: string })?.type ?? "?"}`, body, code, EtudeBody, async (input, ai) => {
         const raw = await ai.etude(input);
         const doc = limitCount(input.type, sanitizeEtude(input.type, raw), input.nombre);
@@ -268,12 +315,28 @@ export function createApi({ generator, study, hasApiKey, modelName = () => MODEL
         return doc;
       }),
 
-    chat: (body: unknown, code?: string | null) => handle("question", body, code, ChatBody, async (input, ai) => ({ reponse: await ai.chat(input) })),
+    redaction: (body: unknown, code?: Credentials | string | null) =>
+      handle(`rédaction ${(body as { mode?: string })?.mode ?? "?"}`, body, code, RedactionBody, async (input, ai) => {
+        const raw = await ai.redaction(input);
+        if (input.mode === "plan") {
+          const plan = sanitizePlan(raw);
+          if (!plan.parties.length) throw new UserFacingError("L'IA n'a pas proposé de plan exploitable. Précise le sujet et réessaie.", 502);
+          return plan;
+        }
+        const relecture = sanitizeRelecture(raw);
+        if (!relecture.appreciation && !relecture.aAmeliorer.length) {
+          throw new UserFacingError("L'IA n'a pas su relire ce texte. Réessaie.", 502);
+        }
+        return relecture;
+      }),
 
-    simplifier: (body: unknown, code?: string | null) =>
+    chat: (body: unknown, code?: Credentials | string | null) =>
+      handle("question", body, code, ChatBody, async (input, ai) => ({ reponse: await ai.chat(input) })),
+
+    simplifier: (body: unknown, code?: Credentials | string | null) =>
       handle("simplifier", body, code, SimplifierBody, async (input, ai) => ({ explication: await ai.simplifier(input) })),
 
-    lire: (body: unknown, code?: string | null) =>
+    lire: (body: unknown, code?: Credentials | string | null) =>
       handle("lecture", body, code, LireBody, async (input, ai) => ({
         texte: (await ai.lire({ media: input.media, data: input.data.replace(/\s+/g, "") })).slice(0, SOURCE_MAX),
       })),
@@ -285,6 +348,7 @@ export const POST_ROUTES = {
   "/api/generate": "generate",
   "/api/expand": "expand",
   "/api/etude": "etude",
+  "/api/redaction": "redaction",
   "/api/chat": "chat",
   "/api/simplifier": "simplifier",
   "/api/lire": "lire",
@@ -321,6 +385,6 @@ export function createFetchHandler(api: Api) {
     } catch {
       return reply({ status: 400, body: { erreur: "Requête invalide (JSON mal formé)." } });
     }
-    return reply(await api[method](body, req.headers.get(ACCESS_CODE_HEADER)));
+    return reply(await api[method](body, { code: req.headers.get(ACCESS_CODE_HEADER), authorization: req.headers.get("authorization") }));
   };
 }

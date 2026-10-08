@@ -14,6 +14,7 @@ import {
   TrashIcon,
 } from "../components/Icons";
 import { KIND_LOOK, KindBadge } from "../components/looks";
+import { MicButton } from "../components/MicButton";
 import { Modal, btn } from "../components/Modal";
 import { BottomSheet } from "../components/Sheet";
 import { SimplifyButton } from "../components/Simplify";
@@ -37,6 +38,7 @@ import { plural } from "../lib/format";
 import { generateCarte, generateDoc, prepareSource } from "../lib/generate";
 import { deleteClasseurDeep, restore, type LibraryItem } from "../lib/library";
 import { newId } from "../lib/mapModel";
+import { recordActivity } from "../lib/serie";
 import { loadMap } from "../lib/storage";
 import { ClasseurForm } from "./General";
 import { PlanningForm } from "./ModePage";
@@ -50,6 +52,7 @@ const ACTIONS: { action: Action; titre: string; detail: string; loading: string 
   { action: "quiz", titre: "Quiz", detail: "QCM corrigés et expliqués", loading: "L'IA prépare ton quiz…" },
   { action: "flashcards", titre: "Flashcards", detail: "Recto / verso à mémoriser", loading: "L'IA prépare tes flashcards…" },
   { action: "resume", titre: "Résumé", detail: "Le cours en quelques paragraphes", loading: "L'IA résume ton cours…" },
+  { action: "frise", titre: "Frise chronologique", detail: "Les dates clés dans l'ordre", loading: "L'IA trace ta frise…" },
 ];
 const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   carte: "carte",
@@ -58,6 +61,7 @@ const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   quiz: "quiz",
   flashcards: "flashcards",
   resume: "resume",
+  frise: "frise",
 };
 
 const SUGGESTIONS = [
@@ -390,6 +394,7 @@ function ChatPanel({ classeur, save }: { classeur: Classeur; save: (c: Classeur)
         c.signal,
       );
       reply = { id: newId(), role: "assistant", texte: reponse, date: Date.now() };
+      recordActivity("question");
     } catch (err) {
       if (err instanceof DOMException && err.name === "AbortError") return;
       reply = { id: newId(), role: "assistant", texte: err instanceof Error ? err.message : "Réponse impossible.", date: Date.now(), erreur: true };
@@ -484,6 +489,7 @@ function ChatPanel({ classeur, save }: { classeur: Classeur; save: (c: Classeur)
           }}
           className="mm-scroll max-h-36 min-h-11 flex-1 rounded-xl border border-slate-200 bg-white px-3 py-2.5 text-base outline-none focus:border-indigo-400 sm:text-sm dark:border-slate-700 dark:bg-slate-900"
         />
+        <MicButton value={question} onChange={(v) => setQuestion(v.slice(0, 2000))} label="Dicter ta question" />
         <button
           type="submit"
           disabled={!question.trim() || pending}

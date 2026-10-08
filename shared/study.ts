@@ -17,8 +17,8 @@ export const DIFFICULTES: { value: Difficulte; label: string }[] = [
 ];
 
 /** Types de documents que Claude sait générer à partir d'un cours. */
-export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume";
-export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume"];
+export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise";
+export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume", "frise"];
 
 /** Longueur maximale du cours envoyé à Claude (environ 15 000 mots). */
 export const SOURCE_MAX = 60_000;
@@ -72,7 +72,52 @@ export interface ResumeIA {
   conclusion: string;
 }
 
-export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA;
+// ---------- Frise chronologique ----------
+
+export interface EvenementIA {
+  /** Année (négative avant J.-C.), pour placer l'événement. */
+  annee: number;
+  /** Mois de 1 à 12, ou 0 s'il n'a pas de sens. */
+  mois: number;
+  /** Date lisible : « 14 juillet 1789 », « vers 3000 av. J.-C. »… */
+  date: string;
+  titre: string;
+  description: string;
+}
+export interface FriseIA {
+  titre: string;
+  periodes: { titre: string; debut: number; fin: number }[];
+  evenements: EvenementIA[];
+}
+
+export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA | FriseIA;
+
+// ---------- Aide à la rédaction ----------
+
+export type TypeDevoir = "dissertation" | "commentaire" | "expose" | "redaction";
+export const TYPES_DEVOIR: { value: TypeDevoir; label: string; description: string }[] = [
+  { value: "dissertation", label: "Dissertation", description: "Répondre à une question en argumentant" },
+  { value: "commentaire", label: "Commentaire", description: "Analyser un texte ou un document" },
+  { value: "expose", label: "Exposé", description: "Préparer une présentation orale" },
+  { value: "redaction", label: "Rédaction", description: "Écrire un récit ou un texte d'invention" },
+];
+export const isTypeDevoir = (v: unknown): v is TypeDevoir => TYPES_DEVOIR.some((t) => t.value === v);
+
+export interface PlanIA {
+  problematiques: string[];
+  introduction: { accroche: string; presentation: string; problematique: string; annonce: string };
+  parties: { titre: string; sousParties: { titre: string; idees: string[]; exemples: string[] }[] }[];
+  conclusion: { bilan: string; ouverture: string };
+  conseils: string[];
+}
+
+export interface RelectureIA {
+  appreciation: string;
+  pointsForts: string[];
+  aAmeliorer: { extrait: string; probleme: string; conseil: string }[];
+  langue: { extrait: string; remarque: string }[];
+  prochaineEtape: string;
+}
 
 // ---------- Nettoyage ----------
 
@@ -233,6 +278,89 @@ export function sanitizeResume(raw: unknown): ResumeIA {
   };
 }
 
+const year = (v: unknown) => (typeof v === "number" && Number.isFinite(v) ? Math.max(-100_000, Math.min(3000, Math.round(v))) : Number.NaN);
+
+export function sanitizeFrise(raw: unknown): FriseIA {
+  const r = obj(raw);
+  const evenements = list(r.evenements)
+    .map((e) => {
+      const o = obj(e);
+      const mois = typeof o.mois === "number" && o.mois >= 1 && o.mois <= 12 ? Math.round(o.mois) : 0;
+      return { annee: year(o.annee), mois, date: cleanText(o.date, 80), titre: cleanText(o.titre, 140), description: cleanText(o.description, 800) };
+    })
+    .filter((e) => Number.isFinite(e.annee) && e.titre)
+    .map((e) => ({ ...e, date: e.date || (e.annee < 0 ? `${-e.annee} av. J.-C.` : String(e.annee)) }))
+    .sort((a, b) => a.annee - b.annee || a.mois - b.mois)
+    .slice(0, 80);
+  const periodes = list(r.periodes)
+    .map((p) => {
+      const o = obj(p);
+      const a = year(o.debut);
+      const b = year(o.fin);
+      return { titre: cleanText(o.titre, 100), debut: Math.min(a, b), fin: Math.max(a, b) };
+    })
+    .filter((p) => p.titre && Number.isFinite(p.debut) && Number.isFinite(p.fin))
+    .sort((a, b) => a.debut - b.debut)
+    .slice(0, 12);
+  return { titre: cleanText(r.titre, 140) || "Frise chronologique", periodes, evenements };
+}
+
+export function sanitizePlan(raw: unknown): PlanIA {
+  const r = obj(raw);
+  const intro = obj(r.introduction);
+  const conclu = obj(r.conclusion);
+  return {
+    problematiques: strings(r.problematiques, 4, 400),
+    introduction: {
+      accroche: cleanText(intro.accroche, 500),
+      presentation: cleanText(intro.presentation, 800),
+      problematique: cleanText(intro.problematique, 400),
+      annonce: cleanText(intro.annonce, 500),
+    },
+    parties: list(r.parties)
+      .map((p) => {
+        const o = obj(p);
+        return {
+          titre: cleanText(o.titre, 200),
+          sousParties: list(o.sousParties)
+            .map((sp) => {
+              const x = obj(sp);
+              return { titre: cleanText(x.titre, 200), idees: strings(x.idees, 6, 300), exemples: strings(x.exemples, 5, 300) };
+            })
+            .filter((sp) => sp.titre || sp.idees.length)
+            .slice(0, 5),
+        };
+      })
+      .filter((p) => p.titre)
+      .slice(0, 5),
+    conclusion: { bilan: cleanText(conclu.bilan, 800), ouverture: cleanText(conclu.ouverture, 500) },
+    conseils: strings(r.conseils, 8, 400),
+  };
+}
+
+export function sanitizeRelecture(raw: unknown): RelectureIA {
+  const r = obj(raw);
+  return {
+    appreciation: cleanText(r.appreciation, 1200),
+    pointsForts: strings(r.pointsForts, 6, 400),
+    aAmeliorer: list(r.aAmeliorer)
+      .map((a) => {
+        const o = obj(a);
+        return { extrait: cleanText(o.extrait, 200), probleme: cleanText(o.probleme, 400), conseil: cleanText(o.conseil, 600) };
+      })
+      .filter((a) => a.probleme || a.conseil)
+      .slice(0, 10),
+    langue: list(r.langue)
+      .map((l) => {
+        const o = obj(l);
+        return { extrait: cleanText(o.extrait, 150), remarque: cleanText(o.remarque, 400) };
+      })
+      .filter((l) => l.remarque)
+      .slice(0, 15),
+    prochaineEtape: cleanText(r.prochaineEtape, 600),
+  };
+}
+
 /** Nettoie la réponse de Claude selon le type demandé. */
 export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
   switch (type) {
@@ -246,6 +374,8 @@ export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
       return sanitizeFlashcards(raw);
     case "resume":
       return sanitizeResume(raw);
+    case "frise":
+      return sanitizeFrise(raw);
   }
 }
 
@@ -262,5 +392,7 @@ export function isUsable(type: TypeEtude, doc: EtudeIA): boolean {
       return (doc as FlashcardsIA).cartes.length > 0;
     case "resume":
       return (doc as ResumeIA).sections.length > 0 || Boolean((doc as ResumeIA).introduction);
+    case "frise":
+      return (doc as FriseIA).evenements.length > 0;
   }
 }

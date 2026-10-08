@@ -6,8 +6,10 @@ import { goHome, openClasseur, openMode } from "../hooks/useHashRoute";
 import { loadClasseur, loadDoc, type StudyDoc } from "../lib/docs";
 import { FicheView } from "./docs/FicheView";
 import { FlashcardsView } from "./docs/FlashcardsView";
+import { FriseView } from "./docs/FriseView";
 import { PlanningView } from "./docs/PlanningView";
 import { QuizView } from "./docs/QuizView";
+import { RedactionView } from "./docs/RedactionView";
 import { ResumeView } from "./docs/ResumeView";
 import { RevisionView } from "./docs/RevisionView";
 
@@ -44,5 +46,9 @@ export default function DocPage({ id }: { id: string }) {
       return <FlashcardsView initial={doc} onBack={back} />;
     case "resume":
       return <ResumeView initial={doc} onBack={back} />;
+    case "frise":
+      return <FriseView initial={doc} onBack={back} />;
+    case "redaction":
+      return <RedactionView initial={doc} onBack={back} />;
   }
 }

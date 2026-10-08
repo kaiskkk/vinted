@@ -113,6 +113,16 @@ describe("outils d'étude", () => {
       if (input.type === "fiche") return { titre: "Fiche", sousTitre: "", blocs: [] };
       return { titre: "Cartes", cartes: [{ recto: "Recto", verso: "Verso" }] };
     },
+    redaction: async (input) =>
+      input.mode === "plan"
+        ? {
+            problematiques: ["Pourquoi ?"],
+            introduction: {},
+            parties: [{ titre: "I. Les causes", sousParties: [{ titre: "A", idees: ["x"], exemples: [] }] }],
+            conclusion: {},
+            conseils: [],
+          }
+        : { appreciation: "Bon début.", pointsForts: ["Clair"], aAmeliorer: [], langue: [], prochaineEtape: "Ajoute des exemples." },
     chat: async (input) => `Réponse à : ${input.question}`,
     simplifier: async () => "Plus simple.",
     lire: async () => "Texte lu",
@@ -146,6 +156,17 @@ describe("outils d'étude", () => {
     expect((await api.lire({ media: "image/jpeg", data: "aGVsbG8=" })).body).toEqual({ texte: "Texte lu" });
     expect((await api.lire({ media: "image/heic", data: "aGVsbG8=" })).status).toBe(400);
     expect((await api.lire({ media: "image/png", data: "<script>" })).status).toBe(400);
+  });
+
+  it("aide à la rédaction : plan, relecture, validation", async () => {
+    const plan = await api.redaction({ mode: "plan", typeDevoir: "dissertation", sujet: "La guerre est-elle inévitable ?" });
+    expect(plan.status).toBe(200);
+    expect(plan.body).toMatchObject({ parties: [{ titre: "I. Les causes" }], introduction: { accroche: "" } });
+    const relu = await api.redaction({ mode: "relecture", typeDevoir: "redaction", sujet: "Raconte", texte: "Il était une fois…" });
+    expect(relu.body).toMatchObject({ appreciation: "Bon début." });
+    expect((await api.redaction({ mode: "relecture", typeDevoir: "redaction", sujet: "Raconte", texte: " " })).status).toBe(400);
+    expect((await api.redaction({ mode: "plan", typeDevoir: "poeme", sujet: "x" })).status).toBe(400);
+    expect((await api.redaction({ mode: "plan", typeDevoir: "expose", sujet: "" })).status).toBe(400);
   });
 
   it("répond 503 sans outils d'étude, et exige le code d'accès", async () => {

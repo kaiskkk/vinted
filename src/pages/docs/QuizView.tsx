@@ -20,6 +20,7 @@ import { openDoc } from "../../hooks/useHashRoute";
 import { useDoc } from "../../hooks/useDoc";
 import { newCard, saveDoc, shuffle, touchClasseur, type FlashcardsDoc, type QuizDoc, type QuizQuestion } from "../../lib/docs";
 import { newId } from "../../lib/mapModel";
+import { recordActivity } from "../../lib/serie";
 
 const LETTERS = ["A", "B", "C", "D", "E", "F"];
 const DIFF_LABEL = { facile: "Facile", moyen: "Moyen", difficile: "Difficile" } as const;
@@ -57,6 +58,7 @@ export function QuizView({ initial, onBack }: { initial: QuizDoc; onBack: () => 
   const next = useCallback(() => {
     if (answer === undefined) return;
     const last = run.index + 1 >= order.length;
+    if (last) recordActivity("quiz");
     if (last && run.complete) {
       const score = order.filter((id) => run.answers[id] === byId.get(id)?.bonne).length;
       update((d) => ({ ...d, tentatives: [...d.tentatives, { date: Date.now(), score, total: order.length }].slice(-30) }), { history: false });

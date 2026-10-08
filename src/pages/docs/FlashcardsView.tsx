@@ -9,6 +9,7 @@ import { useDoc } from "../../hooks/useDoc";
 import { newCard, shuffle, type FlashcardsDoc } from "../../lib/docs";
 import { plural } from "../../lib/format";
 import { answer, deckStats, isDue, sessionQueue } from "../../lib/leitner";
+import { recordActivity } from "../../lib/serie";
 
 type Session = { queue: string[]; index: number; known: number; again: number; requeued: Record<string, number> };
 const BOXES = ["Nouvelles", "Boîte 1", "Boîte 2", "Boîte 3", "Boîte 4", "Maîtrisées"];
@@ -37,6 +38,7 @@ export function FlashcardsView({ initial, onBack }: { initial: FlashcardsDoc; on
   const grade = useCallback(
     (knew: boolean) => {
       if (!session || !current || !flipped) return;
+      recordActivity("flashcards");
       update((d) => ({ ...d, cartes: d.cartes.map((c) => (c.id === current.id ? answer(c, knew) : c)) }), { history: false });
       setSession((s) => {
         if (!s) return s;

@@ -3,7 +3,7 @@
 import type Anthropic from "@anthropic-ai/sdk";
 import { betaZodOutputFormat } from "@anthropic-ai/sdk/helpers/beta/zod";
 import { z } from "zod";
-import { BLOC_TYPES, type Difficulte, type Niveau, type TypeEtude } from "../shared/study";
+import { BLOC_TYPES, TYPES_DEVOIR, type Difficulte, type Niveau, type TypeDevoir, type TypeEtude } from "../shared/study";
 import { MODEL, UserFacingError, checkStopReason, clientFactory, effortFromEnv, type GeneratorOptions } from "./claude";
 
 export interface Source {
@@ -42,9 +42,24 @@ export interface LireInput {
   data: string;
 }
 
+export interface RedactionInput {
+  mode: "plan" | "relecture";
+  typeDevoir: TypeDevoir;
+  /** Sujet ou consigne du devoir. */
+  sujet: string;
+  matiere?: string;
+  /** Texte ou document à commenter (commentaire). */
+  document?: string;
+  /** Texte de l'élève, à relire. */
+  texte?: string;
+  niveau?: Niveau;
+}
+
 export interface StudyAI {
   /** Renvoie le document brut produit par Claude (le nettoyage est fait par l'appelant). */
   etude(input: EtudeInput): Promise<unknown>;
+  /** Plan ou relecture d'un devoir (réponse brute, nettoyée par l'appelant). */
+  redaction(input: RedactionInput): Promise<unknown>;
   chat(input: ChatInput): Promise<string>;
   simplifier(input: SimplifierInput): Promise<string>;
   lire(input: LireInput): Promise<string>;
@@ -96,6 +111,41 @@ const ResumeSchema = z.object({
   conclusion: z.string(),
 });
 
+const FriseSchema = z.object({
+  titre: z.string(),
+  periodes: z.array(z.object({ titre: z.string(), debut: z.number().describe("Année de début (négative avant J.-C.)"), fin: z.number() })),
+  evenements: z.array(
+    z.object({
+      annee: z.number().describe("Année (négative avant J.-C.)"),
+      mois: z.number().describe("Mois de 1 à 12, ou 0 si inconnu ou sans objet"),
+      date: z.string().describe('Date lisible, ex. "14 juillet 1789" ou "vers 3000 av. J.-C."'),
+      titre: z.string(),
+      description: z.string(),
+    }),
+  ),
+});
+
+export const PlanSchema = z.object({
+  problematiques: z.array(z.string()).describe("2 ou 3 problématiques possibles"),
+  introduction: z.object({ accroche: z.string(), presentation: z.string(), problematique: z.string(), annonce: z.string() }),
+  parties: z.array(
+    z.object({
+      titre: z.string(),
+      sousParties: z.array(z.object({ titre: z.string(), idees: z.array(z.string()), exemples: z.array(z.string()) })),
+    }),
+  ),
+  conclusion: z.object({ bilan: z.string(), ouverture: z.string() }),
+  conseils: z.array(z.string()),
+});
+
+export const RelectureSchema = z.object({
+  appreciation: z.string(),
+  pointsForts: z.array(z.string()),
+  aAmeliorer: z.array(z.object({ extrait: z.string(), probleme: z.string(), conseil: z.string() })),
+  langue: z.array(z.object({ extrait: z.string(), remarque: z.string() })),
+  prochaineEtape: z.string(),
+});
+
 export const SimplifierSchema = z.object({ explication: z.string() });
 
 export const SCHEMAS = {
@@ -104,6 +154,7 @@ export const SCHEMAS = {
   quiz: QuizSchema,
   flashcards: FlashcardsSchema,
   resume: ResumeSchema,
+  frise: FriseSchema,
 } as const;
 
 // ---------- Consignes ----------
@@ -198,7 +249,75 @@ Entre 8 et 20 blocs au total. Chaque contenu est court : 1 à 4 phrases ou une p
 - "introduction" : 2 à 3 phrases qui présentent le sujet.
 - "sections" : 3 à 7 parties dans l'ordre du cours, chacune avec un titre court et un texte de 3 à 6 phrases.
 - "conclusion" : 1 à 3 phrases qui dégagent l'idée principale.${consigne}`;
+    case "frise":
+      return `Crée une frise chronologique de ce cours (ou de ce sujet).
+
+- "evenements" : 8 à 25 événements importants, du plus ancien au plus récent. "annee" est un nombre entier (négatif avant J.-C.), "mois" de 1 à 12 ou 0 s'il n'a pas de sens, "date" la date lisible ("14 juillet 1789", "1914-1918", "vers 3000 av. J.-C."), "titre" en 8 mots maximum, "description" en 1 ou 2 phrases.
+- "periodes" : 0 à 6 grandes périodes qui structurent la frise (titre, année de début, année de fin), seulement si c'est pertinent.
+- Les dates doivent être exactes.${consigne}`;
   }
+}
+
+// ---------- Aide à la rédaction ----------
+
+const DEVOIR_PLAN: Record<TypeDevoir, string> = {
+  dissertation:
+    "C'est une dissertation : un plan dialectique, thématique ou analytique selon le sujet, en 2 ou 3 parties, chacune avec 2 ou 3 sous-parties. Pour chaque sous-partie : l'idée directrice et les arguments en quelques mots, et des exemples ou références précis à mobiliser.",
+  commentaire:
+    "C'est un commentaire de texte ou de document : 2 ou 3 axes de lecture (les parties), chacun avec 2 ou 3 sous-parties. Pour chaque sous-partie : l'idée à démontrer, et dans « exemples » les passages courts du document à analyser (citations de quelques mots, avec le procédé à repérer).",
+  expose:
+    "C'est un exposé oral : 2 à 4 parties claires, chacune avec ses points à présenter. Dans « exemples », des exemples, chiffres ou supports visuels possibles. Dans « conseils », pense aussi à l'oral (durée, support, regard, questions du public).",
+  redaction:
+    "C'est une rédaction (récit ou écrit d'invention) : les parties sont les grandes étapes du texte, les sous-parties les moments à écrire, avec dans « idees » ce qui s'y passe et dans « exemples » des procédés d'écriture à utiliser (dialogue, description, figures de style…). Rappelle les contraintes de la consigne dans « conseils ».",
+};
+
+const GUIDE_NOT_WRITE = `Ton rôle est de guider l'élève, jamais de faire le devoir à sa place :
+- n'écris aucun paragraphe rédigé prêt à recopier ; uniquement des pistes, des idées en quelques mots, des questions à se poser ;
+- chaque élément tient en une ligne courte ;
+- tu peux citer des notions, des auteurs, des dates ou des exemples précis à exploiter.`;
+
+export function redactionPrompt(input: RedactionInput): string {
+  const label = TYPES_DEVOIR.find((t) => t.value === input.typeDevoir)?.label ?? input.typeDevoir;
+  const ctx = `Type de devoir : ${label}${input.matiere?.trim() ? `, en ${input.matiere.trim()}` : ""}.
+
+<sujet>
+${input.sujet}
+</sujet>${
+    input.document?.trim()
+      ? `
+
+<document>
+${input.document.trim()}
+</document>`
+      : ""
+  }`;
+  if (input.mode === "plan") {
+    return `${ctx}
+
+${GUIDE_NOT_WRITE}
+
+Propose :
+- "problematiques" : 2 ou 3 problématiques possibles, sous forme de questions.
+- "introduction" : "accroche" (une piste d'accroche), "presentation" (termes à définir, contexte à poser), "problematique" (celle que tu conseilles), "annonce" (l'idée du plan en quelques mots).
+- "parties" : ${DEVOIR_PLAN[input.typeDevoir]}
+- "conclusion" : "bilan" (ce qu'il faut rappeler), "ouverture" (une piste d'ouverture).
+- "conseils" : 3 à 6 conseils de méthode adaptés à ce devoir.`;
+  }
+  return `${ctx}
+
+Voici le texte écrit par l'élève :
+
+<texte_eleve>
+${input.texte ?? ""}
+</texte_eleve>
+
+Relis-le comme un professeur exigeant mais bienveillant. ${GUIDE_NOT_WRITE.split("\n")[0]} Ne réécris pas son texte.
+
+- "appreciation" : 2 ou 3 phrases sur l'ensemble (réponse au sujet, organisation, argumentation, expression).
+- "pointsForts" : 2 à 4 réussites précises.
+- "aAmeliorer" : 3 à 6 points ; "extrait" recopie exactement un court passage concerné (15 mots maximum, ou "" si c'est général), "probleme" dit ce qui ne va pas, "conseil" dit comment l'améliorer (méthode, question à se poser), sans écrire la correction à sa place.
+- "langue" : jusqu'à 8 erreurs d'orthographe, de grammaire ou de ponctuation ; "extrait" recopie le passage fautif (10 mots maximum), "remarque" donne la règle et le mot corrigé.
+- "prochaineEtape" : la priorité pour sa prochaine version, en une phrase.`;
 }
 
 /** Contexte de la discussion : le cours, puis la façon de répondre. */
@@ -231,6 +350,7 @@ export const MAX_TOKENS: Record<TypeEtude, number> = {
   quiz: 10000,
   flashcards: 8000,
   resume: 8000,
+  frise: 6000,
 };
 
 export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
@@ -318,6 +438,19 @@ export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
       const explication = response.parsed_output?.explication?.trim();
       if (!explication) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
       return explication;
+    },
+
+    async redaction(input) {
+      const client = getClient();
+      const response = await client.beta.messages.parse({
+        ...base(systemPrompt(input.niveau)),
+        max_tokens: 8000,
+        output_config: { effort: effortFromEnv(), format: betaZodOutputFormat(input.mode === "plan" ? PlanSchema : RelectureSchema) },
+        messages: [{ role: "user", content: redactionPrompt(input) }],
+      });
+      checkStopReason(response.stop_reason, "La réponse de Claude a été coupée. Raccourcis ton texte ou ton sujet.");
+      if (!response.parsed_output) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
+      return response.parsed_output;
     },
 
     async lire(input) {

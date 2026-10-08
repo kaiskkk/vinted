@@ -8,11 +8,14 @@ import {
   LIRE_PROMPT,
   LIRE_SYSTEM,
   MAX_TOKENS,
+  PlanSchema,
+  RelectureSchema,
   SCHEMAS,
   SimplifierSchema,
   chatContext,
   etudeInstructions,
   isNoText,
+  redactionPrompt,
   simplifierPrompt,
   sourceBlock,
   systemPrompt,
@@ -292,6 +295,8 @@ export function createGeminiProvider(
   const carteSchema = toGeminiSchema(CarteSchema);
   const schemas = Object.fromEntries(Object.entries(SCHEMAS).map(([k, v]) => [k, toGeminiSchema(v)])) as Record<keyof typeof SCHEMAS, GeminiSchema>;
   const simplifierSchema = toGeminiSchema(SimplifierSchema);
+  const planSchema = toGeminiSchema(PlanSchema);
+  const relectureSchema = toGeminiSchema(RelectureSchema);
 
   return {
     generator: {
@@ -314,6 +319,19 @@ export function createGeminiProvider(
             maxOutputTokens: MAX_TOKENS[input.type] * 2,
           },
           "La réponse de l'IA a été coupée car elle était trop longue. Demande moins de questions ou de cartes, ou un cours plus court.",
+        );
+        return parseJson(text);
+      },
+
+      async redaction(input) {
+        const text = await call(
+          {
+            system: systemPrompt(input.niveau),
+            contents: [user({ text: redactionPrompt(input) })],
+            schema: input.mode === "plan" ? planSchema : relectureSchema,
+            maxOutputTokens: 12000,
+          },
+          "La réponse de l'IA a été coupée. Raccourcis ton texte ou ton sujet.",
         );
         return parseJson(text);
       },

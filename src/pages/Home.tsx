@@ -10,9 +10,11 @@ import {
   UploadIcon,
   XIcon,
 } from "../components/Icons";
+import { AccountButton } from "../components/AccountButton";
 import { InstallApp } from "../components/InstallApp";
 import { KIND_LOOK, KindBadge, MODE_INFO } from "../components/looks";
 import { btn } from "../components/Modal";
+import { SeriePill } from "../components/Serie";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useToast } from "../components/Toasts";
 import { NiveauPicker, card } from "../components/ui";
@@ -25,7 +27,7 @@ import { downloadBackup, importAll, listLibrary, type ItemKind, type LibraryItem
 import { today } from "../lib/planning";
 import { listMaps } from "../lib/storage";
 
-type Filter = "tout" | "classeur" | "carte" | "fiche" | "revision" | "quiz" | "flashcards" | "resume";
+type Filter = "tout" | "classeur" | "carte" | "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise" | "redaction";
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "tout", label: "Tout" },
   { value: "classeur", label: "Classeurs" },
@@ -35,6 +37,8 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "quiz", label: "Quiz" },
   { value: "flashcards", label: "Flashcards" },
   { value: "resume", label: "Résumés" },
+  { value: "frise", label: "Frises" },
+  { value: "redaction", label: "Devoirs" },
 ];
 const matches = (f: Filter, kind: ItemKind) => f === "tout" || f === kind || (f === "revision" && kind === "planning");
 
@@ -47,6 +51,8 @@ function modeCounts(items: LibraryItem[]): Record<Mode, number> {
     revision: count(["revision", "planning"]),
     quiz: count(["quiz"]),
     flashcards: count(["flashcards"]),
+    frise: count(["frise"]),
+    redaction: count(["redaction"]),
   };
 }
 
@@ -149,10 +155,16 @@ export default function Home() {
 
       <header className="relative z-10 mx-auto flex max-w-5xl items-center gap-2 px-4 pt-[calc(0.75rem+var(--safe-top))] sm:px-6">
         <img src="/icons/icon.svg" alt="" width={36} height={36} className="h-9 w-9 rounded-xl shadow-md shadow-indigo-500/30" />
-        <span className="text-lg font-bold tracking-tight">ecoleduc</span>
-        <div className="ml-auto flex items-center gap-1">
+        {/* Sur téléphone, le nom est déjà en grand juste en dessous : la place va aux boutons. */}
+        <span className="hidden text-lg font-bold tracking-tight sm:inline">ecoleduc</span>
+        <div className="ml-auto flex min-w-0 items-center gap-1">
+          <SeriePill />
           <NiveauPicker />
-          <ThemeToggle theme={theme} onToggle={toggle} />
+          {/* Très petits écrans : le thème suit déjà celui du téléphone, le bouton laisse la place au compte. */}
+          <span className="contents max-[359px]:hidden">
+            <ThemeToggle theme={theme} onToggle={toggle} />
+          </span>
+          <AccountButton />
         </div>
       </header>
 
@@ -196,7 +208,7 @@ export default function Home() {
         )}
 
         <section className="mt-8" aria-label="Modes">
-          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4">
+          <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 sm:gap-4 lg:grid-cols-4">
             {MODE_IDS.map((mode, i) => {
               const m = MODE_INFO[mode];
               return (

@@ -5,21 +5,29 @@ import {
   BLOC_TYPES,
   cleanText,
   isNiveau,
+  isTypeDevoir,
+  sanitizeFrise,
+  sanitizePlan,
   sanitizeQuestion,
+  sanitizeRelecture,
   type BlocType,
   type Difficulte,
   type FicheIA,
   type FlashcardsIA,
+  type FriseIA,
   type Niveau,
+  type PlanIA,
   type QuizIA,
   type ResumeIA,
+  type RelectureIA,
   type RevisionIA,
+  type TypeDevoir,
 } from "../../shared/study";
 import { normalizeHex } from "../../shared/aiMap";
 import { newId } from "./mapModel";
 
-export type DocType = "fiche" | "revision" | "planning" | "quiz" | "flashcards" | "resume";
-export const DOC_TYPES: DocType[] = ["fiche", "revision", "planning", "quiz", "flashcards", "resume"];
+export type DocType = "fiche" | "revision" | "planning" | "quiz" | "flashcards" | "resume" | "frise" | "redaction";
+export const DOC_TYPES: DocType[] = ["fiche", "revision", "planning", "quiz", "flashcards", "resume", "frise", "redaction"];
 
 interface DocBase {
   id: string;
@@ -117,7 +125,49 @@ export interface ResumeDoc extends DocBase {
   conclusion: string;
 }
 
-export type StudyDoc = FicheDoc | RevisionDoc | PlanningDoc | QuizDoc | FlashcardsDoc | ResumeDoc;
+export interface FriseEvenement {
+  id: string;
+  annee: number;
+  mois: number;
+  date: string;
+  titre: string;
+  description: string;
+  couleur?: string;
+}
+export interface FrisePeriode {
+  id: string;
+  titre: string;
+  debut: number;
+  fin: number;
+  couleur?: string;
+}
+export interface FriseDoc extends DocBase {
+  type: "frise";
+  periodes: FrisePeriode[];
+  evenements: FriseEvenement[];
+}
+
+export interface Relecture {
+  id: string;
+  date: number;
+  /** Nombre de mots du texte relu, pour s'y retrouver entre plusieurs versions. */
+  mots: number;
+  resultat: RelectureIA;
+}
+export interface RedactionDoc extends DocBase {
+  type: "redaction";
+  typeDevoir: TypeDevoir;
+  sujet: string;
+  matiere: string;
+  /** Texte ou document à commenter (commentaire). */
+  document: string;
+  plan: PlanIA | null;
+  /** Le texte de l'élève, écrit dans le site. */
+  brouillon: string;
+  relectures: Relecture[];
+}
+
+export type StudyDoc = FicheDoc | RevisionDoc | PlanningDoc | QuizDoc | FlashcardsDoc | ResumeDoc | FriseDoc | RedactionDoc;
 export type DocOf<T extends DocType> = Extract<StudyDoc, { type: T }>;
 
 export interface DocSummary {
@@ -281,6 +331,30 @@ export function blankDeck(titre = "Nouveau paquet"): FlashcardsDoc {
   return { ...fresh(titre), type: "flashcards", cartes: [] };
 }
 
+export function friseFromIA(ia: FriseIA, classeurId?: string): FriseDoc {
+  return {
+    ...fresh(ia.titre, classeurId),
+    type: "frise",
+    periodes: ia.periodes.map((p) => ({ id: newId(), ...p })),
+    evenements: ia.evenements.map((e) => ({ id: newId(), ...e })),
+  };
+}
+
+export function blankFrise(titre = "Nouvelle frise"): FriseDoc {
+  return { ...fresh(titre), type: "frise", periodes: [], evenements: [] };
+}
+
+export function newRedaction(data: Pick<RedactionDoc, "typeDevoir" | "sujet" | "matiere" | "document">, classeurId?: string): RedactionDoc {
+  const titre = data.sujet.split("\n")[0].slice(0, 90) || "Nouveau devoir";
+  return { ...fresh(titre, classeurId), type: "redaction", ...data, plan: null, brouillon: "", relectures: [] };
+}
+
+export const wordCount = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
+
+/** Événements triés dans l'ordre chronologique. */
+export const sortEvents = <T extends { annee: number; mois: number }>(events: T[]) =>
+  [...events].sort((a, b) => a.annee - b.annee || a.mois - b.mois);
+
 export function resumeFromIA(ia: ResumeIA, classeurId?: string): ResumeDoc {
   return {
     ...fresh(ia.titre, classeurId),
@@ -434,6 +508,40 @@ export function normalizeDoc(raw: unknown): StudyDoc | null {
         }),
         conclusion: cleanText(r.conclusion, 5000),
       };
+    case "frise": {
+      const evenements = list(r.evenements).flatMap((e) => {
+        const o = obj(e);
+        const clean = sanitizeFrise({ evenements: [o] }).evenements[0];
+        const couleur = normalizeHex(o.couleur);
+        return clean ? [{ ...clean, id: idOf(o.id), ...(couleur ? { couleur } : {}) }] : [];
+      });
+      const periodes = list(r.periodes).flatMap((p) => {
+        const o = obj(p);
+        const clean = sanitizeFrise({ periodes: [o] }).periodes[0];
+        const couleur = normalizeHex(o.couleur);
+        return clean ? [{ ...clean, id: idOf(o.id), ...(couleur ? { couleur } : {}) }] : [];
+      });
+      return { ...base, type, evenements: sortEvents(evenements), periodes: periodes.sort((a, b) => a.debut - b.debut) };
+    }
+    case "redaction": {
+      const plan = r.plan && typeof r.plan === "object" ? sanitizePlan(r.plan) : null;
+      return {
+        ...base,
+        type,
+        typeDevoir: isTypeDevoir(r.typeDevoir) ? r.typeDevoir : "dissertation",
+        sujet: typeof r.sujet === "string" ? r.sujet.slice(0, 3000) : "",
+        matiere: cleanText(r.matiere, 100),
+        document: typeof r.document === "string" ? r.document.slice(0, 60_000) : "",
+        plan: plan && plan.parties.length ? plan : null,
+        brouillon: typeof r.brouillon === "string" ? r.brouillon.slice(0, 40_000) : "",
+        relectures: list(r.relectures)
+          .map((x) => {
+            const o = obj(x);
+            return { id: idOf(o.id), date: num(o.date, now), mots: Math.max(0, num(o.mots, 0)), resultat: sanitizeRelecture(o.resultat) };
+          })
+          .slice(-20),
+      };
+    }
   }
 }
 
@@ -455,6 +563,12 @@ export function docInfo(doc: StudyDoc): string {
       return plural(doc.cartes.length, "carte");
     case "resume":
       return plural(doc.sections.length, "partie");
+    case "frise":
+      return plural(doc.evenements.length, "événement");
+    case "redaction": {
+      const mots = wordCount(doc.brouillon);
+      return mots ? `${plural(mots, "mot")} écrits` : doc.plan ? "Plan prêt" : "À commencer";
+    }
   }
 }
 
@@ -489,6 +603,33 @@ export function saveDoc(doc: StudyDoc) {
   const index = (readJson<DocSummary[]>(DOCS_INDEX) ?? []).filter((d) => d.id !== doc.id);
   index.push(summaryOf(doc));
   writeJson(DOCS_INDEX, index);
+}
+
+const idsWithPrefix = (prefix: string) => {
+  const ids: string[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (key?.startsWith(prefix)) ids.push(key.slice(prefix.length));
+  }
+  return ids;
+};
+
+/** Reconstruit les index des documents et des classeurs d'après leur contenu (après une synchronisation). */
+export function rebuildDocIndexes() {
+  writeJson(
+    DOCS_INDEX,
+    idsWithPrefix("ed-doc:").flatMap((id) => {
+      const doc = loadDoc(id);
+      return doc ? [summaryOf(doc)] : [];
+    }),
+  );
+  writeJson(
+    CLASSEURS_INDEX,
+    idsWithPrefix("ed-classeur:").flatMap((id) => {
+      const c = loadClasseur(id);
+      return c ? [{ id: c.id, nom: c.nom, createdAt: c.createdAt, updatedAt: c.updatedAt }] : [];
+    }),
+  );
 }
 
 export function deleteDoc(id: string) {

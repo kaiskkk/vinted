@@ -151,6 +151,18 @@ export function renameMap(id: string, name: string) {
   saveMap(map);
 }
 
+/** Reconstruit l'index des cartes d'après les cartes présentes (après une synchronisation). */
+export function rebuildMapIndex() {
+  const index: MapSummary[] = [];
+  for (let i = 0; i < localStorage.length; i++) {
+    const key = localStorage.key(i);
+    if (!key?.startsWith("mm-map:")) continue;
+    const map = loadMap(key.slice("mm-map:".length));
+    if (map) index.push(summaryOf(map));
+  }
+  writeJson(INDEX_KEY, index);
+}
+
 export function deleteMap(id: string) {
   localStorage.removeItem(mapKey(id));
   writeJson(

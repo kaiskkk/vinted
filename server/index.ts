@@ -3,6 +3,7 @@ import { fileURLToPath } from "node:url";
 import dotenv from "dotenv";
 import { createApp } from "./app";
 import { createAI, usesGemini } from "./ai";
+import { verifierFromEnv } from "./auth";
 import { MODEL, hasCredentials } from "./claude";
 import { geminiModel } from "./gemini";
 
@@ -15,6 +16,8 @@ const production = process.argv.includes("--production") || process.env.NODE_ENV
 const app = createApp({
   ...createAI(),
   accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
+  // Comptes élèves : actifs si VITE_FIREBASE_CONFIG est renseignée.
+  verifyUser: verifierFromEnv(),
   staticDir: production ? path.resolve(here, "../dist") : undefined,
   log: (message) => console.log(message),
 });

@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { SparklesIcon, Spinner, XIcon } from "./Icons";
+import { MicButton } from "./MicButton";
 
 export type GenerateMode = "replace" | "append";
 
@@ -66,6 +67,7 @@ export function PromptBar({ loading, onGenerate, onCancel, variant }: PromptBarP
           enterKeyHint="send"
           className="h-10 min-w-0 flex-1 bg-transparent px-1 text-base outline-none placeholder:text-slate-400 disabled:opacity-60 md:text-[15px]"
         />
+        {!loading && <MicButton value={prompt} onChange={(v) => setPrompt(v.slice(0, 2000))} label="Dicter ta demande" />}
 
         {compact ? (
           // Téléphone : le mode n'apparaît qu'une fois la demande commencée, et se change d'un toucher.

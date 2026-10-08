@@ -1,6 +1,7 @@
 import { lazy, Suspense, type ComponentType } from "react";
 import { AccessCodePrompt } from "./components/AccessCodePrompt";
 import { Spinner } from "./components/Icons";
+import { SerieWatcher } from "./components/Serie";
 import { ToastProvider } from "./components/Toasts";
 import { useHashRoute } from "./hooks/useHashRoute";
 import Home from "./pages/Home";
@@ -36,6 +37,8 @@ const GeneralPage = lazyPage(() => import("./pages/General"));
 const ClasseurPage = lazyPage(() => import("./pages/Classeur"));
 const ModePage = lazyPage(() => import("./pages/ModePage"));
 const DocPage = lazyPage(() => import("./pages/DocPage"));
+const RedactionPage = lazyPage(() => import("./pages/Redaction"));
+const SeriePage = lazyPage(() => import("./pages/Serie"));
 
 function Loading({ label }: { label: string }) {
   return (
@@ -62,8 +65,14 @@ export default function App() {
     case "doc":
       page = <DocPage key={route.id} id={route.id} />;
       break;
+    case "serie":
+      page = <SeriePage />;
+      break;
     case "mode":
-      page = route.mode === "cartes" ? <MindMaps /> : route.mode === "general" ? <GeneralPage /> : <ModePage key={route.mode} mode={route.mode} />;
+      if (route.mode === "cartes") page = <MindMaps />;
+      else if (route.mode === "general") page = <GeneralPage />;
+      else if (route.mode === "redaction") page = <RedactionPage />;
+      else page = <ModePage key={route.mode} mode={route.mode} />;
       break;
     default:
       page = <Home />;
@@ -72,6 +81,7 @@ export default function App() {
     <ToastProvider>
       <Suspense fallback={<Loading label="Chargement…" />}>{page}</Suspense>
       <AccessCodePrompt />
+      <SerieWatcher />
     </ToastProvider>
   );
 }

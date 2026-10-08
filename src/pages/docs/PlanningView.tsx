@@ -7,6 +7,7 @@ import { Page, PageHeader, card, input } from "../../components/ui";
 import { useDoc } from "../../hooks/useDoc";
 import type { PlanningDoc, TacheGenre } from "../../lib/docs";
 import { addDays, buildPlanning, daysBetween, parseChapitres, parseDay, today } from "../../lib/planning";
+import { recordActivity } from "../../lib/serie";
 import { PrintButtons } from "./common";
 
 const GENRES: Record<TacheGenre, { label: string; chip: string }> = {
@@ -48,11 +49,14 @@ export function PlanningView({ initial, onBack }: { initial: PlanningDoc; onBack
     todayRef.current?.scrollIntoView({ block: "center" });
   }, []);
 
-  const toggle = (date: string, id: string) =>
+  const toggle = (date: string, id: string) => {
+    const tache = doc.jours.find((j) => j.date === date)?.taches.find((t) => t.id === id);
+    if (tache && !tache.fait) recordActivity("planning");
     update((d) => ({
       ...d,
       jours: d.jours.map((j) => (j.date === date ? { ...j, taches: j.taches.map((t) => (t.id === id ? { ...t, fait: !t.fait } : t)) } : j)),
     }));
+  };
 
   return (
     <div className="min-h-dvh">

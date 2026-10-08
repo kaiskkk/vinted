@@ -2,6 +2,7 @@ import { useRef, useState } from "react";
 import { SOURCE_MAX } from "../../shared/study";
 import { ACCEPTED_FILES, extractText } from "../lib/importSource";
 import { CameraIcon, FileTextIcon, Spinner, UploadIcon, XIcon } from "./Icons";
+import { MicButton } from "./MicButton";
 import { btn } from "./Modal";
 import { AutoTextarea, Segmented, input } from "./ui";
 
@@ -74,7 +75,13 @@ export function SourcePicker({
         className={`${input} max-h-[50dvh] min-h-40 overflow-y-auto py-3 leading-relaxed`}
       />
       <div className="mt-1.5 flex items-center justify-between gap-2 text-xs text-slate-500 dark:text-slate-400">
-        <span>{value.fichiers.length > 0 && `Importé : ${value.fichiers.join(", ")}`}</span>
+        <MicButton
+          value={value.cours}
+          onChange={(cours) => onChange({ ...latest.current, cours })}
+          label="Dicter ton cours"
+          className="-my-1 -ml-1"
+        />
+        <span className="min-w-0 flex-1 truncate">{value.fichiers.length > 0 && `Importé : ${value.fichiers.join(", ")}`}</span>
         <span className={length > SOURCE_MAX ? "font-medium text-amber-600 dark:text-amber-400" : ""}>
           {length > SOURCE_MAX
             ? `Trop long : seuls les ${SOURCE_MAX.toLocaleString("fr-FR")} premiers caractères seront utilisés`
@@ -101,14 +108,17 @@ export function SourcePicker({
 
       {tab === "sujet" && (
         <div>
-          <input
-            value={value.sujet}
-            onChange={(e) => onChange({ ...value, sujet: e.target.value.slice(0, 300) })}
-            placeholder="Ex. La photosynthèse, Le théorème de Pythagore…"
-            aria-label="Sujet"
-            enterKeyHint="done"
-            className={`${input} h-12`}
-          />
+          <div className="flex items-center gap-1">
+            <input
+              value={value.sujet}
+              onChange={(e) => onChange({ ...value, sujet: e.target.value.slice(0, 300) })}
+              placeholder="Ex. La photosynthèse, Le théorème de Pythagore…"
+              aria-label="Sujet"
+              enterKeyHint="done"
+              className={`${input} h-12`}
+            />
+            <MicButton value={value.sujet} max={300} onChange={(sujet) => onChange({ ...latest.current, sujet })} label="Dicter le sujet" />
+          </div>
           <p className="mt-1.5 text-xs text-slate-500 dark:text-slate-400">
             Pas de cours sous la main ? L'IA s'appuie sur ce qu'on apprend à ton niveau.
             {value.cours.trim() && " Ton cours collé reste prioritaire."}

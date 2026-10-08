@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { saveDoc, type StudyDoc } from "../lib/docs";
+import { recordActivity } from "../lib/serie";
 
 const LIMIT = 100;
 /** Deux modifications de même clé à moins de ce délai forment une seule étape d'annulation (frappe au clavier). */
@@ -30,6 +31,8 @@ export function useDoc<T extends StudyDoc>(initial: T, onSaveError?: (message: s
     try {
       saveDoc(current.current);
       setSavedAt(Date.now());
+      // Modifier un document, faire un quiz ou une séance de flashcards : c'est réviser.
+      recordActivity("edition");
     } catch (err) {
       errorRef.current?.(err instanceof Error ? err.message : "Sauvegarde impossible.");
     }

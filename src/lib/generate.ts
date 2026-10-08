@@ -1,8 +1,20 @@
 // Génère un document (ou une carte mentale) avec Claude, l'enregistre et renvoie son id.
 import type { Difficulte, Niveau, TypeEtude } from "../../shared/study";
 import { generateEtude, generateMapFromCourse, type SourceEtude } from "./api";
-import { ficheFromIA, flashcardsFromIA, linkMap, quizFromIA, resumeFromIA, revisionFromIA, saveDoc, touchClasseur, type StudyDoc } from "./docs";
+import {
+  ficheFromIA,
+  flashcardsFromIA,
+  friseFromIA,
+  linkMap,
+  quizFromIA,
+  resumeFromIA,
+  revisionFromIA,
+  saveDoc,
+  touchClasseur,
+  type StudyDoc,
+} from "./docs";
 import { limitSource } from "./importSource";
+import { recordActivity } from "./serie";
 
 export interface GenerateOptions {
   nombre?: number;
@@ -43,10 +55,14 @@ export async function generateDoc(
     case "resume":
       doc = resumeFromIA(await generateEtude("resume", src, niveau, options, signal), classeurId);
       break;
+    case "frise":
+      doc = friseFromIA(await generateEtude("frise", src, niveau, options, signal), classeurId);
+      break;
   }
   if (signal?.aborted) throw new DOMException("Annulé", "AbortError");
   saveDoc(doc);
   touchClasseur(classeurId);
+  recordActivity("generation");
   return doc;
 }
 
@@ -85,5 +101,6 @@ export async function generateCarte(
     linkMap(id, classeurId);
     touchClasseur(classeurId);
   }
+  recordActivity("generation");
   return id;
 }

@@ -14,6 +14,7 @@ import {
   saveDoc,
   type DocType,
 } from "./docs";
+import { mergeSerie, parseSerie, readSerie, type SerieData } from "./serie";
 import { hydrateMap, listMaps, loadMap, saveMap } from "./storage";
 
 export type ItemKind = "carte" | DocType | "classeur";
@@ -117,6 +118,8 @@ export interface Backup {
   documents: unknown[];
   classeurs: unknown[];
   liensCartes: Record<string, string>;
+  /** Jours de révision (série 🔥) ; absent des sauvegardes plus anciennes. */
+  serie?: SerieData;
 }
 
 export function exportAll(): Backup {
@@ -137,6 +140,7 @@ export function exportAll(): Backup {
       return cl ? [cl] : [];
     }),
     liensCartes: readLinks(),
+    serie: readSerie(),
   };
 }
 
@@ -197,6 +201,10 @@ export function importAll(raw: unknown): ImportReport {
     const links = { ...readLinks() };
     for (const [m, c] of Object.entries(data.liensCartes)) if (typeof c === "string") links[m] = c;
     localStorage.setItem("ed-liens-cartes", JSON.stringify(links));
+  }
+  if (data.serie && typeof data.serie === "object") {
+    const merged = mergeSerie(readSerie(), parseSerie(JSON.stringify(data.serie)));
+    localStorage.setItem("ed-serie", JSON.stringify(merged));
   }
   return report;
 }

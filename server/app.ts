@@ -20,7 +20,9 @@ export function createApp({ staticDir, ...apiOptions }: AppOptions) {
 
   app.get("/api/health", (_req, res) => send(res, api.health()));
   for (const [route, method] of Object.entries(POST_ROUTES)) {
-    app.post(route, async (req, res) => send(res, await api[method](req.body, req.get(ACCESS_CODE_HEADER))));
+    app.post(route, async (req, res) =>
+      send(res, await api[method](req.body, { code: req.get(ACCESS_CODE_HEADER), authorization: req.get("authorization") })),
+    );
   }
 
   app.use("/api", (_req, res) => {

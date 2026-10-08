@@ -14,6 +14,7 @@ export function createAI(options: GeneratorOptions = {}) {
   const generator: MindMapGenerator = { generate: (input) => pick().generator.generate(input) };
   const study: StudyAI = {
     etude: (input) => pick().study.etude(input),
+    redaction: (input) => pick().study.redaction(input),
     chat: (input) => pick().study.chat(input),
     simplifier: (input) => pick().study.simplifier(input),
     lire: (input) => pick().study.lire(input),

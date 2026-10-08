@@ -1,5 +1,16 @@
 import { describe, expect, it } from "vitest";
-import { cleanText, sanitizeFiche, sanitizeFlashcards, sanitizeQuestion, sanitizeQuiz, sanitizeResume, sanitizeRevision } from "./study";
+import {
+  cleanText,
+  sanitizeFrise,
+  sanitizePlan,
+  sanitizeRelecture,
+  sanitizeFiche,
+  sanitizeFlashcards,
+  sanitizeQuestion,
+  sanitizeQuiz,
+  sanitizeResume,
+  sanitizeRevision,
+} from "./study";
 
 describe("nettoyage des documents d'étude", () => {
   it("nettoie le texte", () => {
@@ -37,6 +48,38 @@ describe("nettoyage des documents d'étude", () => {
     expect(quiz.questions).toHaveLength(1);
     const cartes = sanitizeFlashcards({ cartes: [{ recto: "A", verso: "1" }, { recto: "a", verso: "2" }, { recto: "B" }] });
     expect(cartes.cartes).toEqual([{ recto: "A", verso: "1" }]);
+  });
+
+  it("répare et trie une frise", () => {
+    const f = sanitizeFrise({
+      evenements: [
+        { annee: 1914, mois: 7, date: "28 juillet 1914", titre: "Début de la guerre" },
+        { annee: -52, mois: 0, titre: "Alésia" },
+        { annee: "1918", titre: "Année en texte" },
+        { annee: 1789, titre: "" },
+      ],
+      periodes: [{ titre: "Guerre", debut: 1918, fin: 1914 }],
+    });
+    expect(f.evenements.map((e) => e.titre)).toEqual(["Alésia", "Début de la guerre"]);
+    expect(f.evenements[0].date).toBe("52 av. J.-C.");
+    expect(f.periodes).toEqual([{ titre: "Guerre", debut: 1914, fin: 1918 }]);
+  });
+
+  it("répare un plan et une relecture", () => {
+    const p = sanitizePlan({
+      problematiques: ["A ?", "A ?"],
+      parties: [{ titre: "I", sousParties: [{ titre: "1", idees: ["x"], exemples: "non" }] }, { titre: "" }],
+    });
+    expect(p.problematiques).toEqual(["A ?"]);
+    expect(p.parties).toEqual([{ titre: "I", sousParties: [{ titre: "1", idees: ["x"], exemples: [] }] }]);
+    expect(p.conclusion).toEqual({ bilan: "", ouverture: "" });
+    const r = sanitizeRelecture({
+      appreciation: "Bien",
+      aAmeliorer: [{ extrait: "x" }, { probleme: "P", conseil: "C" }],
+      langue: [{ extrait: "a" }],
+    });
+    expect(r.aAmeliorer).toEqual([{ extrait: "", probleme: "P", conseil: "C" }]);
+    expect(r.langue).toEqual([]);
   });
 
   it("répare la révision et le résumé", () => {
