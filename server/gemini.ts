@@ -126,6 +126,62 @@ function httpError(status: number, message: string): UserFacingError {
 /** Modèles gratuits essayés ensuite si le premier est surchargé, à sa limite ou introuvable (chacun a son propre quota). */
 export const FALLBACK_MODELS = ["gemini-2.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"];
 
+/** Modèles Gemma : gratuits, avec leur propre quota, mais sans consigne système ni mode JSON. */
+export const isGemma = (model: string) => /^gemma-/.test(model);
+
+const EXCLUDED = /(image|tts|audio|live|embed|native|computer|robotics|veo|imagen|aqa|learnlm|research|dialog)/;
+const versionOf = (n: string) => parseFloat(/-(\d+(?:\.\d+)?)/.exec(n)?.[1] ?? "0");
+const sizeOf = (n: string) => parseFloat(/-e?(\d+(?:\.\d+)?)b\b/.exec(n)?.[1] ?? "0");
+
+/**
+ * Parmi les modèles proposés par Google pour cette clé, ceux qui conviennent au site, du plus rapide au plus lent :
+ * Gemini Flash-Lite, puis Flash (les plus récents d'abord, versions stables avant les préversions), puis deux Gemma.
+ */
+export function rankModels(list: { name?: string; supportedGenerationMethods?: string[] }[]): string[] {
+  const names = list
+    .filter((m) => typeof m.name === "string" && (m.supportedGenerationMethods ?? []).includes("generateContent"))
+    .map((m) => m.name!.replace(/^models\//, ""))
+    .filter((n) => !EXCLUDED.test(n));
+  const unstable = (n: string) => (/(preview|exp)/.test(n) ? 1 : 0);
+  const gemini = names
+    .filter((n) => n.startsWith("gemini-") && n.includes("flash"))
+    .sort(
+      (a, b) =>
+        Number(b.includes("lite")) - Number(a.includes("lite")) || versionOf(b) - versionOf(a) || unstable(a) - unstable(b) || a.localeCompare(b),
+    );
+  // Gemma : les tailles moyennes répondent assez vite pour la limite de temps des fonctions en ligne.
+  const gemma = names
+    .filter((n) => isGemma(n) && sizeOf(n) >= 8 && sizeOf(n) <= 32)
+    .sort((a, b) => versionOf(b) - versionOf(a) || sizeOf(a) - sizeOf(b));
+  return [...gemini.slice(0, 8), ...gemma.slice(0, 2)];
+}
+
+const DISCOVERY_TTL_MS = 60 * 60 * 1000;
+const discovered = new Map<string, { at: number; models: string[] }>();
+
+/** Demande à Google la liste des modèles disponibles pour cette clé (gardée une heure ; vide en cas d'échec). */
+async function discoverModels(key: string, fetchImpl: typeof fetch, timeoutMs: number): Promise<string[]> {
+  const cached = discovered.get(key);
+  if (cached && Date.now() - cached.at < DISCOVERY_TTL_MS) return cached.models;
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetchImpl(`${API_URL}?pageSize=1000`, { method: "GET", headers: { "x-goog-api-key": key }, signal: controller.signal });
+    if (!res.ok) return [];
+    const json = (await res.json()) as { models?: { name?: string; supportedGenerationMethods?: string[] }[] };
+    const models = rankModels(Array.isArray(json?.models) ? json.models : []);
+    if (models.length) discovered.set(key, { at: Date.now(), models });
+    return models;
+  } catch {
+    return [];
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Pauses avant de réessayer les modèles surchargés : les pics de demande de Google sont souvent très courts. */
+export const RETRY_DELAYS_MS = [1500, 3500, 6000];
+
 interface Attempt {
   model: string;
   /** Réponse guidée par le schéma JSON (sinon le schéma est seulement décrit dans la consigne). */
@@ -159,20 +215,32 @@ class AttemptError extends Error {
 }
 const RETRYABLE = (status: number) => status === 404 || status === 429 || status >= 500 || status === 0;
 
-export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {}, fetchImpl: typeof fetch = fetch) {
+const defaultSleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
+
+/** Essai sur un modèle de secours trouvé dans la liste de Google (Gemma : sans schéma imposé ni réglage de réflexion). */
+const extraAttempt = (model: string, withSchema: boolean): Attempt => ({ model, strict: withSchema && !isGemma(model), fast: !isGemma(model) });
+
+export function createGeminiClient(
+  { timeoutMs = 120_000, maxRetries = 0 }: GeneratorOptions = {},
+  fetchImpl: typeof fetch = fetch,
+  sleep = defaultSleep,
+) {
   async function attempt(key: string, req: GeminiRequest, a: Attempt, remainingMs: number) {
+    const gemma = isGemma(a.model);
     const system =
-      a.strict || !req.schema
+      (a.strict && !gemma) || !req.schema
         ? req.system
         : `${req.system}\n\nRéponds uniquement avec un objet JSON valide qui respecte ce schéma :\n${JSON.stringify(req.schema)}`;
+    // Gemma ne connaît pas les consignes système : elles sont placées en tête du premier message.
+    const contents = gemma ? req.contents.map((c, i) => (i === 0 ? { ...c, parts: [{ text: system }, ...c.parts] } : c)) : req.contents;
     const body = JSON.stringify({
-      systemInstruction: { parts: [{ text: system }] },
-      contents: req.contents,
+      ...(gemma ? {} : { systemInstruction: { parts: [{ text: system }] } }),
+      contents,
       generationConfig: {
-        maxOutputTokens: req.maxOutputTokens,
-        ...(req.schema ? { responseMimeType: "application/json" } : {}),
-        ...(req.schema && a.strict ? { responseSchema: req.schema } : {}),
-        ...(a.fast ? { thinkingConfig: thinkingFor(a.model) } : {}),
+        maxOutputTokens: gemma ? Math.min(req.maxOutputTokens, 8192) : req.maxOutputTokens,
+        ...(req.schema && !gemma ? { responseMimeType: "application/json" } : {}),
+        ...(req.schema && a.strict && !gemma ? { responseSchema: req.schema } : {}),
+        ...(a.fast && !gemma ? { thinkingConfig: thinkingFor(a.model) } : {}),
       },
     });
     const controller = new AbortController();
@@ -207,52 +275,62 @@ export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {
     if (!key) throw new UserFacingError("Clé Gemini manquante : ajoute la variable CLE_GEMINI.", 500);
     const deadline = Date.now() + timeoutMs;
     const errors: AttemptError[] = [];
+    const withSchema = Boolean(req.schema);
+    const tried = new Set<string>();
+    // Modèles surchargés ou injoignables : ils seront réessayés après une pause.
+    const overloaded = new Set<string>();
+    const hasTime = (needMs = 8_000) => deadline - Date.now() >= needMs;
 
-    const plan = attemptPlan(Boolean(req.schema));
-    for (let i = 0; i < plan.length; i++) {
-      const a = plan[i];
-      const remaining = deadline - Date.now();
-      // Pas assez de temps pour un nouvel essai : on s'arrête avec un message clair.
-      if (errors.length > 0 && remaining < 8_000) break;
-      let json;
-      try {
-        json = await attempt(key, req, a, remaining);
-      } catch (err) {
-        if (!(err instanceof AttemptError)) throw err;
-        console.warn(`[gemini] ${a.model}${a.strict ? "" : " (sans schéma)"} : ${err.status} ${err.message}`);
-        errors.push(err);
-        // Réglage de réflexion inconnu de ce modèle : on le réessaie aussitôt sans ce réglage.
-        if (err.status === 400 && a.fast && /think/i.test(err.message)) {
-          plan.splice(i + 1, 0, { ...a, fast: false });
+    /** Essaie les modèles un par un ; renvoie le texte du premier qui répond, ou null si tous ont échoué. */
+    const tryAll = async (plan: Attempt[]): Promise<string | null> => {
+      for (let i = 0; i < plan.length; i++) {
+        const a = plan[i];
+        // Pas assez de temps pour un nouvel essai : on s'arrête avec un message clair.
+        if (errors.length > 0 && !hasTime()) return null;
+        tried.add(a.model);
+        let json;
+        try {
+          json = await attempt(key, req, a, deadline - Date.now());
+        } catch (err) {
+          if (!(err instanceof AttemptError)) throw err;
+          console.warn(`[gemini] ${a.model}${a.strict ? "" : " (sans schéma)"} : ${err.status} ${err.message}`);
+          errors.push(err);
+          // Réglage de réflexion inconnu de ce modèle : on le réessaie aussitôt sans ce réglage.
+          if (err.status === 400 && a.fast && /think/i.test(err.message)) {
+            plan.splice(i + 1, 0, { ...a, fast: false });
+            continue;
+          }
+          // Un modèle de secours qui refuse la demande telle quelle : on passe simplement au suivant.
+          if (err.status === 400 && isGemma(a.model)) continue;
+          if (!RETRYABLE(err.status)) throw httpError(err.status, err.message);
+          if (err.status === 0 || err.status >= 500) overloaded.add(a.model);
           continue;
         }
-        if (!RETRYABLE(err.status)) throw httpError(err.status, err.message);
-        continue;
+        return readText(json, req, tooLong);
       }
+      return null;
+    };
 
-      if (json?.promptFeedback?.blockReason) {
-        throw new UserFacingError("L'IA a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
-      }
-      const candidate = json?.candidates?.[0];
-      const finish = candidate?.finishReason ?? "";
-      if (BLOCKED.has(finish)) throw new UserFacingError("L'IA a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
-      const text = (candidate?.content?.parts ?? [])
-        .filter((p) => typeof p.text === "string" && !p.thought)
-        .map((p) => p.text)
-        .join("")
-        .trim();
-      if (finish === "MAX_TOKENS") {
-        if (!text) throw new UserFacingError(tooLong, 502);
-        // Un JSON coupé est inutilisable ; un texte coupé reste lisible.
-        if (req.schema) {
-          try {
-            JSON.parse(text);
-          } catch {
-            throw new UserFacingError(tooLong, 502);
-          }
-        }
-      }
-      return text;
+    // 1. Le modèle choisi et les modèles de secours habituels.
+    let text = await tryAll(attemptPlan(withSchema));
+    if (text !== null) return text;
+
+    // 2. Tous surchargés ou à leur limite : les autres modèles gratuits proposés par Google pour cette clé.
+    if (hasTime()) {
+      const extra = (await discoverModels(key, fetchImpl, Math.min(4_000, deadline - Date.now()))).filter((m) => !tried.has(m));
+      text = await tryAll(extra.map((m) => extraAttempt(m, withSchema)));
+      if (text !== null) return text;
+    }
+
+    // 3. Les pics de demande passent vite : nouvelle tentative sur les modèles surchargés, après une courte pause.
+    for (let pass = 0; pass < maxRetries && overloaded.size > 0; pass++) {
+      const wait = RETRY_DELAYS_MS[Math.min(pass, RETRY_DELAYS_MS.length - 1)];
+      if (!hasTime(wait + 8_000)) break;
+      await sleep(wait);
+      const models = [...overloaded];
+      overloaded.clear();
+      text = await tryAll(models.map((m) => extraAttempt(m, withSchema)));
+      if (text !== null) return text;
     }
 
     // Tous les essais ont échoué : le message dépend de la cause la plus parlante.
@@ -262,12 +340,43 @@ export function createGeminiClient({ timeoutMs = 120_000 }: GeneratorOptions = {
     if (last.status === 0) throw new UserFacingError(`Impossible de joindre l'IA de Google (${last.message}).`, 502);
     if (last.status >= 500) {
       throw new UserFacingError(
-        `L'IA de Google est surchargée en ce moment (plusieurs modèles gratuits essayés). Réessaie dans quelques minutes. Détail : ${last.message.slice(0, 160)}`,
+        `L'IA de Google est surchargée en ce moment (${tried.size} modèles gratuits essayés). Réessaie dans une minute. Détail : ${last.message.slice(0, 160)}`,
         503,
       );
     }
     throw httpError(last.status, last.message);
   };
+
+  /** Texte de la réponse ; erreurs claires si l'IA refuse ou si la réponse est coupée. */
+  function readText(
+    json: { promptFeedback?: { blockReason?: string }; candidates?: { finishReason?: string; content?: { parts?: Part[] } }[] } | null,
+    req: GeminiRequest,
+    tooLong: string,
+  ): string {
+    if (json?.promptFeedback?.blockReason) {
+      throw new UserFacingError("L'IA a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
+    }
+    const candidate = json?.candidates?.[0];
+    const finish = candidate?.finishReason ?? "";
+    if (BLOCKED.has(finish)) throw new UserFacingError("L'IA a refusé de traiter cette demande. Reformule-la et réessaie.", 422);
+    const text = (candidate?.content?.parts ?? [])
+      .filter((p) => typeof p.text === "string" && !p.thought)
+      .map((p) => p.text)
+      .join("")
+      .trim();
+    if (finish === "MAX_TOKENS") {
+      if (!text) throw new UserFacingError(tooLong, 502);
+      // Un JSON coupé est inutilisable ; un texte coupé reste lisible.
+      if (req.schema) {
+        try {
+          JSON.parse(text.replace(/^```(?:json)?\s*/i, "").replace(/```$/, ""));
+        } catch {
+          throw new UserFacingError(tooLong, 502);
+        }
+      }
+    }
+    return text;
+  }
 }
 
 /** Lit la réponse JSON de Gemini (en retirant d'éventuelles balises ```json). */
@@ -290,8 +399,9 @@ const user = (...parts: Part[]): Content => ({ role: "user", parts });
 export function createGeminiProvider(
   options: GeneratorOptions = {},
   fetchImpl: typeof fetch = fetch,
+  sleep?: (ms: number) => Promise<void>,
 ): { generator: MindMapGenerator; study: StudyAI } {
-  const call = createGeminiClient(options, fetchImpl);
+  const call = createGeminiClient(options, fetchImpl, sleep);
   const carteSchema = toGeminiSchema(CarteSchema);
   const schemas = Object.fromEntries(Object.entries(SCHEMAS).map(([k, v]) => [k, toGeminiSchema(v)])) as Record<keyof typeof SCHEMAS, GeminiSchema>;
   const simplifierSchema = toGeminiSchema(SimplifierSchema);

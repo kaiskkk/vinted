@@ -7,7 +7,8 @@ import { LIRE_MAX_CHARS, TOO_LARGE, createApi, createFetchHandler } from "./api"
 import { verifierFromEnv } from "./auth";
 
 // Vercel laisse jusqu'à 60 s à une fonction (offre gratuite) : on s'arrête un peu avant pour renvoyer un message clair.
-const limits = { timeoutMs: 55_000, maxRetries: 0 };
+// Avec ce temps, les modèles surchargés sont réessayés jusqu'à deux fois après une courte pause.
+const limits = { timeoutMs: 55_000, maxRetries: 2 };
 
 const handle = createFetchHandler(
   createApi({

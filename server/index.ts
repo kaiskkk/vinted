@@ -14,7 +14,7 @@ const port = Number(process.env.PORT) || 3001;
 const production = process.argv.includes("--production") || process.env.NODE_ENV === "production";
 
 const app = createApp({
-  ...createAI(),
+  ...createAI({ maxRetries: 2 }),
   accessCode: () => process.env.CODE_ACCES?.trim() || undefined,
   // Comptes élèves : actifs si VITE_FIREBASE_CONFIG est renseignée.
   verifyUser: verifierFromEnv(),

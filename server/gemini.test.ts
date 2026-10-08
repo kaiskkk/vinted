@@ -159,3 +159,92 @@ describe("Gemini (IA gratuite)", () => {
     delete process.env.GEMINIE;
   });
 });
+
+describe("Gemini : quand Google est surchargé", () => {
+  const LISTE = {
+    models: [
+      { name: "models/gemini-2.5-flash", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-2.5-flash-image", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-2.5-flash-preview-tts", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-3-flash-preview", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-3.1-flash-lite-preview", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-2.0-flash", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemini-2.5-pro", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemma-3-1b-it", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemma-3-12b-it", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/gemma-3-27b-it", supportedGenerationMethods: ["generateContent"] },
+      { name: "models/text-embedding-004", supportedGenerationMethods: ["embedContent"] },
+    ],
+  };
+
+  /** Google simulé : liste des modèles, et une réponse choisie pour chaque modèle (ou une surcharge). */
+  function google(reply: (model: string, n: number) => { status?: number; json: unknown }) {
+    const calls: { model: string; body: Record<string, unknown> }[] = [];
+    const counts = new Map<string, number>();
+    const fn = (async (url: string, init: RequestInit) => {
+      if (!init.body) return new Response(JSON.stringify(LISTE), { status: 200 });
+      const model = decodeURIComponent(url.split("/models/")[1].split(":")[0]);
+      counts.set(model, (counts.get(model) ?? 0) + 1);
+      calls.push({ model, body: JSON.parse(String(init.body)) });
+      const r = reply(model, counts.get(model)!);
+      return new Response(JSON.stringify(r.json), { status: r.status ?? 200 });
+    }) as unknown as typeof fetch;
+    return { fn, calls };
+  }
+  const surcharge = { status: 503, json: { error: { message: "This model is currently experiencing high demand." } } };
+
+  beforeEach(() => {
+    process.env.CLE_GEMINI = `cle-${Math.random()}`;
+    delete process.env.MODELE_GEMINI;
+  });
+  afterEach(() => {
+    delete process.env.CLE_GEMINI;
+  });
+
+  it("classe les modèles proposés par Google", async () => {
+    const { rankModels } = await import("./gemini");
+    expect(rankModels(LISTE.models)).toEqual([
+      "gemini-3.1-flash-lite-preview",
+      "gemini-3-flash-preview",
+      "gemini-2.5-flash",
+      "gemini-2.0-flash",
+      "gemma-3-12b-it",
+      "gemma-3-27b-it",
+    ]);
+  });
+
+  it("essaie les autres modèles gratuits, jusqu'à Gemma (sans consigne système ni mode JSON)", async () => {
+    const { fn, calls } = google((model) =>
+      model.startsWith("gemma") ? { json: answer('```json\n{"explication": "Plus simple."}\n```') } : surcharge,
+    );
+    expect(await createGeminiProvider({}, fn).study.simplifier({ texte: "x" })).toBe("Plus simple.");
+    const models = calls.map((c) => c.model);
+    expect(models.slice(0, 4)).toEqual(["gemini-flash-lite-latest", "gemini-2.5-flash-lite", "gemini-flash-latest", "gemini-2.5-flash"]);
+    expect(models).toContain("gemini-3.1-flash-lite-preview");
+    expect(models.at(-1)).toBe("gemma-3-12b-it");
+    const gemma = calls.at(-1)!.body;
+    expect(gemma).not.toHaveProperty("systemInstruction");
+    expect(gemma.generationConfig).not.toHaveProperty("responseMimeType");
+    expect(gemma.generationConfig).not.toHaveProperty("thinkingConfig");
+    expect(JSON.stringify(gemma.contents)).toContain("respecte ce schéma");
+  });
+
+  it("réessaie après une courte pause quand tout est surchargé", async () => {
+    const pauses: number[] = [];
+    const { fn, calls } = google((model, n) =>
+      model === "gemini-flash-lite-latest" && n >= 3 ? { json: answer('{"explication": "Ok"}') } : surcharge,
+    );
+    const sleep = async (ms: number) => void pauses.push(ms);
+    expect(await createGeminiProvider({ maxRetries: 2 }, fn, sleep).study.simplifier({ texte: "x" })).toBe("Ok");
+    expect(pauses).toEqual([1500]);
+    expect(calls.filter((c) => c.model === "gemini-flash-lite-latest")).toHaveLength(3);
+  });
+
+  it("message clair si tout reste surchargé", async () => {
+    const { fn } = google(() => surcharge);
+    await expect(createGeminiProvider({ maxRetries: 2 }, fn, async () => {}).study.simplifier({ texte: "x" })).rejects.toMatchObject({
+      status: 503,
+      message: expect.stringMatching(/surchargée en ce moment \(\d+ modèles gratuits essayés\)/),
+    });
+  });
+});
