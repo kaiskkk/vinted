@@ -103,6 +103,22 @@ Bon à savoir :
 - Sans comptes, les données sont enregistrées **dans le navigateur, séparément pour chaque adresse** : celles créées sur `localhost` n'apparaissent pas sur `netlify.app`. Pour les transférer, utilise la sauvegarde complète (*Accueil → Mes données*), ou active les comptes (voir « Comptes élèves »).
 - Netlify coupe une fonction au bout d'environ 30 secondes : une génération est donc limitée à 25 secondes en ligne. Pour les gros quiz ou les longs cours, demande moins de questions ou découpe le cours.
 
+## Ou bien : héberger gratuitement sur Vercel (sans crédits)
+
+Le même code se publie aussi sur **Vercel**, gratuit pour un usage personnel, sans système de crédits : pratique quand ceux de Netlify sont épuisés. Le front est servi tel quel et l'API devient une fonction Vercel (`server/vercel.ts`, mêmes routes que Netlify). `vercel.json` demande la commande `npm run build:vercel`, qui prépare tout dans `.vercel/output`.
+
+1. Va sur <https://vercel.com/signup>, choisis **Hobby**, et connecte-toi avec **GitHub**.
+2. **Add New… → Project**, puis **Import** à côté du dépôt **vinted** (autorise Vercel à voir le dépôt si on te le demande).
+3. Donne un nom au projet (par exemple `ecoleduc`) : ce sera l'adresse `https://ecoleduc.vercel.app`. Ne touche pas aux réglages de build.
+4. Ouvre **Environment Variables** et ajoute les mêmes variables que sur Netlify : `CLE_GEMINI` (ou `GEMINIE`) avec ta clé Gemini, et `VITE_FIREBASE_CONFIG` si tu utilises les comptes.
+5. Clique sur **Deploy**. Ensuite, chaque modification envoyée sur GitHub est publiée automatiquement.
+6. Comptes : dans Firebase, ajoute l'adresse Vercel dans **Authentication → Paramètres → Domaines autorisés**.
+
+Bon à savoir :
+
+- Les données enregistrées dans le navigateur sont propres à chaque adresse : pour retrouver sur Vercel ce que tu avais sur Netlify, fais **Accueil → Mes données → Sauvegarder tout** sur l'ancienne adresse, puis **Restaurer une sauvegarde** sur la nouvelle (une fois connecté, tout part dans ton compte).
+- Sur Vercel, une génération peut durer jusqu'à 55 secondes (au lieu de 25 sur Netlify).
+
 ## IA gratuite avec Gemini
 
 Le site sait utiliser **Google Gemini** à la place de Claude, avec l'offre gratuite de Google (sans carte bancaire). Mêmes fonctions : cartes mentales, fiches, révision, quiz, flashcards, résumés, questions sur le cours, « Plus simple » et lecture des photos.
@@ -279,6 +295,7 @@ server/
   gemini.ts       les mêmes fonctions avec Google Gemini (offre gratuite)
 netlify/
   functions/api.ts  la même API, sous forme de fonction Netlify (en ligne)
+server/vercel.ts  la même API, sous forme de fonction Vercel (scripts/build-vercel.mjs l'assemble ; vercel.json)
 shared/
   aiMap.ts        format des cartes de Claude et nettoyage
   study.ts        formats des documents d'étude et nettoyage (serveur et front)
