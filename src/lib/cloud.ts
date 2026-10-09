@@ -19,10 +19,12 @@ import {
   collection,
   connectFirestoreEmulator,
   doc,
+  getDoc,
   getDocs,
   getFirestore,
   query,
   serverTimestamp,
+  setDoc,
   where,
   writeBatch,
   type Firestore,
@@ -96,6 +98,32 @@ export function createBackend(uid: string): CloudBackend {
       await batch.commit();
     },
   };
+}
+
+// ---------- Partage par lien ----------
+
+export interface SharedDoc {
+  kind: string;
+  titre: string;
+  /** Contenu partagé (JSON), copie figée au moment du partage. */
+  data: string;
+}
+
+/** Publie une copie dans partages/{id} : lisible par tout élève connecté qui a le lien. */
+export async function publishShare(id: string, shared: SharedDoc) {
+  const { auth, db } = ready();
+  const uid = auth.currentUser?.uid;
+  if (!uid) throw new Error("Connecte-toi pour partager.");
+  await setDoc(doc(db, "partages", id), { ...shared, proprietaire: uid, createdAt: serverTimestamp() });
+}
+
+export async function fetchShare(id: string): Promise<SharedDoc | null> {
+  const snap = await getDoc(doc(ready().db, "partages", id));
+  if (!snap.exists()) return null;
+  const d = snap.data() as Partial<SharedDoc>;
+  return typeof d.kind === "string" && typeof d.data === "string"
+    ? { kind: d.kind, titre: typeof d.titre === "string" ? d.titre : "", data: d.data }
+    : null;
 }
 
 const AUTH_ERRORS: Record<string, string> = {

@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { CheckIcon, PencilIcon, PlusIcon, RefreshIcon, RotateIcon, ShuffleIcon, TrashIcon, XIcon } from "../../components/Icons";
 import { Modal, btn } from "../../components/Modal";
@@ -91,6 +94,8 @@ export function FlashcardsView({ initial, onBack }: { initial: FlashcardsDoc; on
       actions={
         <>
           <SavedIndicator at={savedAt} className="mr-1 hidden sm:inline-flex" />
+          {!session && !editing && <ListenButton compact texts={() => docSegments(doc)} label={`Flashcards : ${doc.titre}`} />}
+          {!session && !editing && <ShareButton compact kind="flashcards" id={doc.id} titre={doc.titre} />}
           {!session && (
             <button
               type="button"
@@ -179,6 +184,12 @@ export function FlashcardsView({ initial, onBack }: { initial: FlashcardsDoc; on
             <span className="text-amber-600 tabular-nums dark:text-amber-400" title="À revoir">
               ↺ {session.again}
             </span>
+            <ListenButton
+              compact
+              className="-my-2"
+              texts={() => [flipped ? current.verso : current.recto]}
+              label={flipped ? "Réponse de la carte" : "Question de la carte"}
+            />
           </div>
 
           <button

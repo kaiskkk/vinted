@@ -55,6 +55,15 @@ export interface RedactionInput {
   niveau?: Niveau;
 }
 
+export type ImageMedia = "image/jpeg" | "image/png" | "image/webp" | "image/gif";
+export interface CopieInput {
+  /** Photos de la copie corrigée (une par page), en base64. */
+  images: { media: ImageMedia; data: string }[];
+  matiere?: string;
+  consigne?: string;
+  niveau?: Niveau;
+}
+
 export interface StudyAI {
   /** Renvoie le document brut produit par Claude (le nettoyage est fait par l'appelant). */
   etude(input: EtudeInput): Promise<unknown>;
@@ -63,6 +72,8 @@ export interface StudyAI {
   chat(input: ChatInput): Promise<string>;
   simplifier(input: SimplifierInput): Promise<string>;
   lire(input: LireInput): Promise<string>;
+  /** Analyse d'une copie corrigée (réponse brute, nettoyée par l'appelant). */
+  copie(input: CopieInput): Promise<unknown>;
 }
 
 // ---------- Schémas de sortie (JSON structuré) ----------
@@ -125,6 +136,36 @@ const FriseSchema = z.object({
   ),
 });
 
+const ExerciceSchema = z.object({
+  titre: z.string().describe("Titre court de l'exercice"),
+  enonce: z.string(),
+  indices: z.array(z.string()).describe("1 à 3 indices, du plus léger au plus précis"),
+  etapes: z.array(z.string()).describe("Correction détaillée, une étape par élément"),
+  reponse: z.string().describe("Résultat final, court"),
+});
+
+const ExercicesSchema = z.object({ titre: z.string(), exercices: z.array(ExerciceSchema) });
+
+const JeuSchema = z.object({
+  titre: z.string(),
+  paires: z.array(z.object({ terme: z.string(), definition: z.string() })),
+  trous: z.array(
+    z.object({ texte: z.string().describe("Phrase avec les mots à retrouver entre crochets, ex. « Le [magma] remonte par la [cheminée]. »") }),
+  ),
+  motsCroises: z.array(z.object({ mot: z.string().describe("Un seul mot, sans espace"), indice: z.string() })),
+});
+
+export const CopieSchema = z.object({
+  titre: z.string().describe("Titre court du devoir"),
+  matiere: z.string(),
+  note: z.string().describe('Note visible sur la copie, ex. "12/20", ou ""'),
+  bilan: z.string(),
+  pointsForts: z.array(z.string()),
+  erreurs: z.array(z.object({ extrait: z.string(), explication: z.string(), correction: z.string(), conseil: z.string() })),
+  notions: z.array(z.string()).describe("Notions du cours à revoir"),
+  exercices: z.array(ExerciceSchema),
+});
+
 export const PlanSchema = z.object({
   problematiques: z.array(z.string()).describe("2 ou 3 problématiques possibles"),
   introduction: z.object({ accroche: z.string(), presentation: z.string(), problematique: z.string(), annonce: z.string() }),
@@ -155,6 +196,8 @@ export const SCHEMAS = {
   flashcards: FlashcardsSchema,
   resume: ResumeSchema,
   frise: FriseSchema,
+  exercices: ExercicesSchema,
+  jeu: JeuSchema,
 } as const;
 
 // ---------- Consignes ----------
@@ -255,7 +298,42 @@ Entre 8 et 20 blocs au total. Chaque contenu est court : 1 à 4 phrases ou une p
 - "evenements" : 8 à 25 événements importants, du plus ancien au plus récent. "annee" est un nombre entier (négatif avant J.-C.), "mois" de 1 à 12 ou 0 s'il n'a pas de sens, "date" la date lisible ("14 juillet 1789", "1914-1918", "vers 3000 av. J.-C."), "titre" en 8 mots maximum, "description" en 1 ou 2 phrases.
 - "periodes" : 0 à 6 grandes périodes qui structurent la frise (titre, année de début, année de fin), seulement si c'est pertinent.
 - Les dates doivent être exactes.${consigne}`;
+    case "exercices": {
+      const n = input.nombre ?? 5;
+      return `Crée ${n} exercices d'entraînement sur ce cours, de difficulté ${DIFFICULTE_CONSIGNE[input.difficulte ?? "moyen"]}.
+
+- Des exercices concrets comme en classe : calculs, problèmes, applications, questions de raisonnement (en maths, physique ou chimie, avec des valeurs numériques), du plus simple au plus difficile.
+- "enonce" : complet et précis, avec toutes les données utiles.
+- "indices" : 1 à 3 coups de pouce, du plus léger au plus précis, sans donner la réponse.
+- "etapes" : la correction détaillée, une étape par élément (méthode, calcul, justification), avec les unités.
+- "reponse" : le résultat final en une ligne.
+- Écris les formules en texte lisible (x², √, ×, ÷, ≤, →).${consigne}`;
+    }
+    case "jeu":
+      return `Prépare des jeux de révision sur ce cours.
+
+- "paires" : 8 à 12 paires à relier (terme et sa définition courte, date et son événement, notion et son exemple). "terme" en 5 mots maximum, "definition" en 15 mots maximum.
+- "trous" : 6 à 10 phrases clés du cours dans lesquelles 1 ou 2 mots importants sont entre crochets, par exemple « La [photosynthèse] a lieu dans les [chloroplastes]. ». Les mots entre crochets sont courts (1 à 3 mots).
+- "motsCroises" : 8 à 12 mots importants du cours, chacun d'UN SEUL mot de 3 à 12 lettres (sans espace ni tiret), avec un indice clair de 12 mots maximum qui ne contient pas le mot.${consigne}`;
   }
+}
+
+// ---------- Copie corrigée ----------
+
+export function copiePrompt(input: CopieInput): string {
+  const pages = input.images.length > 1 ? `Les ${input.images.length} photos sont les pages de la copie, dans l'ordre.` : "La photo montre la copie.";
+  const matiere = input.matiere?.trim() ? `\nMatière : ${input.matiere.trim()}` : "";
+  const consigne = input.consigne?.trim() ? `\nPrécision de l'élève : ${input.consigne.trim()}` : "";
+  return `Voici une copie d'élève corrigée par son professeur. ${pages}${matiere}${consigne}
+
+Aide l'élève à comprendre ses erreurs pour progresser :
+- "erreurs" : chaque erreur signalée par le professeur (annotations, corrections, points perdus) et celles que tu repères. "extrait" : ce que l'élève a écrit, en quelques mots ; "explication" : pourquoi c'est faux, simplement ; "correction" : la bonne réponse ; "conseil" : comment ne plus refaire cette erreur.
+- "note" : la note si elle est visible (ex. "12/20"), sinon "".
+- "bilan" : 2 à 3 phrases encourageantes et honnêtes sur la copie.
+- "pointsForts" : 1 à 4 réussites concrètes.
+- "notions" : 2 à 5 notions du cours à revoir.
+- "exercices" : 2 à 4 exercices d'entraînement ciblés sur ces erreurs, avec "indices", une correction en "etapes" et la "reponse".
+Si les photos ne montrent pas une copie lisible, laisse "erreurs" vide et explique-le dans "bilan".`;
 }
 
 // ---------- Aide à la rédaction ----------
@@ -351,6 +429,8 @@ export const MAX_TOKENS: Record<TypeEtude, number> = {
   flashcards: 8000,
   resume: 8000,
   frise: 6000,
+  exercices: 9000,
+  jeu: 6000,
 };
 
 export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
@@ -449,6 +529,27 @@ export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
         messages: [{ role: "user", content: redactionPrompt(input) }],
       });
       checkStopReason(response.stop_reason, "La réponse de Claude a été coupée. Raccourcis ton texte ou ton sujet.");
+      if (!response.parsed_output) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
+      return response.parsed_output;
+    },
+
+    async copie(input) {
+      const client = getClient();
+      const response = await client.beta.messages.parse({
+        ...base(systemPrompt(input.niveau)),
+        max_tokens: 9000,
+        output_config: { effort: effortFromEnv(), format: betaZodOutputFormat(CopieSchema) },
+        messages: [
+          {
+            role: "user",
+            content: [
+              ...input.images.map((img) => ({ type: "image" as const, source: { type: "base64" as const, media_type: img.media, data: img.data } })),
+              { type: "text" as const, text: copiePrompt(input) },
+            ],
+          },
+        ],
+      });
+      checkStopReason(response.stop_reason, "L'analyse de la copie a été coupée. Envoie moins de pages à la fois.");
       if (!response.parsed_output) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
       return response.parsed_output;
     },

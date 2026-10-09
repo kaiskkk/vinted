@@ -1,11 +1,26 @@
 rules_version = '2';
 
-// Règles de sécurité de la base Firestore d'ecoleduc :
-// chaque élève ne peut lire et écrire que ses propres données (utilisateurs/{son identifiant}/…).
+// Règles de sécurité de la base Firestore d'ecoleduc.
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Chaque élève ne peut lire et écrire que ses propres données (utilisateurs/{son identifiant}/…).
     match /utilisateurs/{uid}/donnees/{cle} {
       allow read, write: if request.auth != null && request.auth.uid == uid;
+    }
+
+    // Partage par lien : une copie figée, lisible par les élèves connectés qui ont le lien
+    // (identifiant impossible à deviner ; « get » seulement : personne ne peut lister tous les partages),
+    // modifiable seulement par celui qui l'a partagée.
+    match /partages/{id} {
+      allow get: if request.auth != null;
+      allow create: if request.auth != null
+        && request.resource.data.proprietaire == request.auth.uid
+        && request.resource.data.data is string
+        && request.resource.data.data.size() < 1000000;
+      allow update: if request.auth != null
+        && resource.data.proprietaire == request.auth.uid
+        && request.resource.data.proprietaire == request.auth.uid;
+      allow delete: if request.auth != null && resource.data.proprietaire == request.auth.uid;
     }
   }
 }

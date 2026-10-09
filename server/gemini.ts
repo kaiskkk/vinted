@@ -5,6 +5,7 @@ import { z } from "zod";
 import type { AiMap } from "../shared/aiMap";
 import { CarteSchema, SYSTEM_PROMPT, UserFacingError, buildUserMessage, type GeneratorOptions, type MindMapGenerator } from "./claude";
 import {
+  CopieSchema,
   LIRE_PROMPT,
   LIRE_SYSTEM,
   MAX_TOKENS,
@@ -13,6 +14,7 @@ import {
   SCHEMAS,
   SimplifierSchema,
   chatContext,
+  copiePrompt,
   etudeInstructions,
   isNoText,
   redactionPrompt,
@@ -407,6 +409,7 @@ export function createGeminiProvider(
   const simplifierSchema = toGeminiSchema(SimplifierSchema);
   const planSchema = toGeminiSchema(PlanSchema);
   const relectureSchema = toGeminiSchema(RelectureSchema);
+  const copieSchema = toGeminiSchema(CopieSchema);
 
   return {
     generator: {
@@ -489,6 +492,19 @@ export function createGeminiProvider(
         );
         if (isNoText(text)) throw new UserFacingError("Aucun texte lisible n'a été trouvé dans ce document. Essaie une photo plus nette.", 422);
         return text;
+      },
+
+      async copie(input) {
+        const text = await call(
+          {
+            system: systemPrompt(input.niveau),
+            contents: [user(...input.images.map((img) => ({ inlineData: { mimeType: img.media, data: img.data } })), { text: copiePrompt(input) })],
+            schema: copieSchema,
+            maxOutputTokens: 16000,
+          },
+          "L'analyse de la copie a été coupée. Envoie moins de pages à la fois.",
+        );
+        return parseJson(text);
       },
     },
   };

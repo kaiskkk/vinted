@@ -1,7 +1,32 @@
 import { useEffect, useState } from "react";
 
-export type Mode = "general" | "cartes" | "fiches" | "revision" | "quiz" | "flashcards" | "frise" | "redaction";
-export const MODE_IDS: Mode[] = ["general", "cartes", "fiches", "revision", "quiz", "flashcards", "frise", "redaction"];
+export type Mode =
+  | "general"
+  | "cartes"
+  | "fiches"
+  | "revision"
+  | "quiz"
+  | "flashcards"
+  | "exercices"
+  | "jeux"
+  | "frise"
+  | "redaction"
+  | "copie"
+  | "agenda";
+export const MODE_IDS: Mode[] = [
+  "general",
+  "cartes",
+  "fiches",
+  "revision",
+  "quiz",
+  "flashcards",
+  "exercices",
+  "jeux",
+  "frise",
+  "redaction",
+  "copie",
+  "agenda",
+];
 
 export type Route =
   | { page: "home" }
@@ -9,9 +34,12 @@ export type Route =
   | { page: "editor"; mapId: string }
   | { page: "classeur"; id: string }
   | { page: "doc"; id: string }
-  | { page: "serie" };
+  | { page: "serie" }
+  | { page: "partage"; id: string };
 
 function parse(hash: string): Route {
+  const share = /^#\/partage\/([A-Za-z0-9_-]{8,64})/.exec(hash);
+  if (share) return { page: "partage", id: share[1] };
   const m = /^#\/(carte|classeur|doc)\/([^/?#]+)/.exec(hash);
   if (m) {
     const id = decodeURIComponent(m[2]);
@@ -25,7 +53,7 @@ function parse(hash: string): Route {
 
 /**
  * Routage minimal par hash : #/ (accueil), #/<mode>, #/carte/<id> (éditeur de carte mentale),
- * #/classeur/<id>, #/doc/<id> (fiche, quiz, flashcards…) et #/serie (série de révision).
+ * #/classeur/<id>, #/doc/<id> (fiche, quiz, flashcards…), #/serie (série de révision) et #/partage/<id> (document partagé).
  */
 export function useHashRoute(): Route {
   const [route, setRoute] = useState(() => parse(window.location.hash));

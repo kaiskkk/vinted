@@ -1,8 +1,10 @@
 import { useState } from "react";
+import { ShareButton } from "../../components/ShareButton";
 import { TYPES_DEVOIR, type PlanIA, type RelectureIA } from "../../../shared/study";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { CheckIcon, ChevronRightIcon, PencilIcon, SparklesIcon, TrashIcon } from "../../components/Icons";
 import { MicButton } from "../../components/MicButton";
+import { ListenButton } from "../../components/ReadAloud";
 import { btn } from "../../components/Modal";
 import { useToast } from "../../components/Toasts";
 import {
@@ -19,6 +21,7 @@ import {
 } from "../../components/ui";
 import { useDoc } from "../../hooks/useDoc";
 import { proposePlan, relireTexte, type DevoirInfo } from "../../lib/api";
+import { docSegments } from "../../lib/docSpeech";
 import { wordCount, type RedactionDoc } from "../../lib/docs";
 import { newId } from "../../lib/mapModel";
 import { recordActivity } from "../../lib/serie";
@@ -217,6 +220,8 @@ export function RedactionView({ initial, onBack }: { initial: RedactionDoc; onBa
                     <SparklesIcon size={16} /> Autre plan
                   </button>
                   <div className="ml-auto flex">
+                    <ListenButton compact texts={() => docSegments(doc)} label={`Plan : ${doc.titre}`} />
+                    <ShareButton compact kind="redaction" id={doc.id} titre={doc.titre} />
                     <PrintButtons compact />
                   </div>
                 </div>
@@ -246,6 +251,7 @@ export function RedactionView({ initial, onBack }: { initial: RedactionDoc; onBa
                 <span className="flex-1 text-xs text-slate-500 tabular-nums dark:text-slate-400">
                   {mots} mot{mots > 1 ? "s" : ""}
                 </span>
+                <ListenButton compact texts={() => [doc.brouillon]} label={`Mon texte : ${doc.titre}`} />
                 <PrintButtons compact />
               </div>
             </div>

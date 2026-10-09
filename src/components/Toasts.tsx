@@ -49,9 +49,10 @@ export function ToastProvider({ children }: { children: ReactNode }) {
     <ToastContext.Provider value={api}>
       {children}
       <div
-        // --mm-bottom-ui : hauteur des barres flottantes du bas (éditeur sur téléphone).
-        className="no-print pointer-events-none fixed left-1/2 z-[60] flex w-[min(calc(100vw-1.5rem),460px)] -translate-x-1/2 flex-col gap-2"
-        style={{ bottom: "calc(1rem + var(--safe-bottom) + var(--mm-bottom-ui, 0px))" }}
+        // --mm-bottom-ui : hauteur des barres flottantes du bas (éditeur sur téléphone) ; --reader-bar : barre de lecture à voix haute.
+        // Fenêtre ouverte : remontées en haut (voir .toasts dans index.css).
+        className="toasts no-print pointer-events-none fixed left-1/2 z-[60] flex w-[min(calc(100vw-1.5rem),460px)] -translate-x-1/2 flex-col gap-2"
+        style={{ bottom: "calc(1rem + var(--safe-bottom) + var(--mm-bottom-ui, 0px) + var(--reader-bar, 0px))" }}
       >
         {toasts.map((t) => (
           <div

@@ -8,7 +8,7 @@ import fs from "node:fs/promises";
 
 const OUT = ".vercel/output";
 // Mêmes routes que netlify/functions/api.ts.
-const ROUTES = ["health", "generate", "expand", "etude", "redaction", "chat", "simplifier", "lire"];
+const ROUTES = ["health", "generate", "expand", "etude", "redaction", "chat", "simplifier", "lire", "copie"];
 
 await fs.rm(OUT, { recursive: true, force: true });
 await fs.cp("dist", `${OUT}/static`, { recursive: true });

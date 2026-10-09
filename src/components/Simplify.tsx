@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { ListenButton } from "./ReadAloud";
 import { ApiError, simplify } from "../lib/api";
 import { AlertIcon, LightbulbIcon, RefreshIcon, Spinner } from "./Icons";
 import { btn } from "./Modal";
@@ -92,6 +93,7 @@ function SimplifySheet({ text, contexte, onClose }: { text: string; contexte?: s
           {result ? (
             <div className="animate-fade-in rounded-2xl bg-amber-50 p-4 text-[15px] leading-relaxed text-slate-800 dark:bg-amber-500/10 dark:text-slate-100">
               <RichText text={result} />
+              <ListenButton texts={[result]} label="Explication plus simple" className="mt-3" />
             </div>
           ) : error ? (
             <div className="rounded-2xl border border-red-200 bg-red-50 p-4 text-sm text-red-800 dark:border-red-500/30 dark:bg-red-950/40 dark:text-red-200">

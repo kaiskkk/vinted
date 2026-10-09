@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { CheckIcon, PencilIcon, RefreshIcon } from "../../components/Icons";
 import { Modal, btn } from "../../components/Modal";
@@ -105,6 +108,8 @@ export function PlanningView({ initial, onBack }: { initial: PlanningDoc; onBack
             <button type="button" className={btn.secondary} onClick={() => setEditing(true)}>
               <PencilIcon size={15} /> Modifier
             </button>
+            <ListenButton texts={() => docSegments(doc)} label={`Planning : ${doc.titre}`} />
+            <ShareButton kind={doc.type} id={doc.id} titre={doc.titre} />
             <PrintButtons />
           </div>
         </section>

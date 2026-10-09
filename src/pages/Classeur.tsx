@@ -15,6 +15,8 @@ import {
 } from "../components/Icons";
 import { KIND_LOOK, KindBadge } from "../components/looks";
 import { MicButton } from "../components/MicButton";
+import { ListenButton } from "../components/ReadAloud";
+import { ShareButton } from "../components/ShareButton";
 import { Modal, btn } from "../components/Modal";
 import { BottomSheet } from "../components/Sheet";
 import { SimplifyButton } from "../components/Simplify";
@@ -53,6 +55,8 @@ const ACTIONS: { action: Action; titre: string; detail: string; loading: string 
   { action: "flashcards", titre: "Flashcards", detail: "Recto / verso à mémoriser", loading: "L'IA prépare tes flashcards…" },
   { action: "resume", titre: "Résumé", detail: "Le cours en quelques paragraphes", loading: "L'IA résume ton cours…" },
   { action: "frise", titre: "Frise chronologique", detail: "Les dates clés dans l'ordre", loading: "L'IA trace ta frise…" },
+  { action: "exercices", titre: "Exercices", detail: "Avec indices et corrigés pas à pas", loading: "L'IA prépare tes exercices…" },
+  { action: "jeu", titre: "Jeux de révision", detail: "Paires, trous et mots croisés", loading: "L'IA prépare tes jeux…" },
 ];
 const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   carte: "carte",
@@ -62,6 +66,8 @@ const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   flashcards: "flashcards",
   resume: "resume",
   frise: "frise",
+  exercices: "exercices",
+  jeu: "jeu",
 };
 
 const SUGGESTIONS = [
@@ -173,6 +179,7 @@ function ClasseurView({ classeur, setClasseur }: { classeur: Classeur; setClasse
         onBack={() => openMode("general")}
         actions={
           <>
+            <ShareButton compact kind="classeur" id={classeur.id} titre={classeur.nom} />
             <button type="button" className={btn.icon} onClick={() => setView("edit")} title="Modifier le cours" aria-label="Modifier le cours">
               <PencilIcon size={17} />
             </button>
@@ -229,7 +236,9 @@ function ClasseurView({ classeur, setClasseur }: { classeur: Classeur; setClasse
                       <button
                         type="button"
                         disabled={task.busy}
-                        onClick={() => (a.action === "quiz" || a.action === "flashcards" ? setOptions(a.action) : generate(a.action))}
+                        onClick={() =>
+                          a.action === "quiz" || a.action === "flashcards" || a.action === "exercices" ? setOptions(a.action) : generate(a.action)
+                        }
                         className={`${card} group flex h-full min-h-28 w-full flex-col items-start p-3.5 text-left transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-60`}
                       >
                         <KindBadge kind={KIND_OF[a.action]} />
@@ -319,23 +328,32 @@ function GenerateOptions({
   const [nombre, setNombre] = useState(10);
   const [difficulte, setDifficulte] = useState<Difficulte>("moyen");
   useEffect(() => {
-    if (action) setNombre(action === "quiz" ? 10 : 20);
+    if (action) setNombre(action === "quiz" ? 10 : action === "exercices" ? 5 : 20);
   }, [action]);
   if (!action) return null;
   const quiz = action === "quiz";
+  const exos = action === "exercices";
+  const withLevel = quiz || exos;
   return (
-    <BottomSheet open onClose={onClose} backdrop title={quiz ? "Ton quiz" : "Tes flashcards"} label="Options de génération" maxHeight="80dvh">
+    <BottomSheet
+      open
+      onClose={onClose}
+      backdrop
+      title={quiz ? "Ton quiz" : exos ? "Tes exercices" : "Tes flashcards"}
+      label="Options de génération"
+      maxHeight="80dvh"
+    >
       <div className="space-y-5 px-5 pt-2 pb-4">
         <div>
-          <p className="mb-2 text-sm font-semibold">{quiz ? "Nombre de questions" : "Nombre de cartes"}</p>
+          <p className="mb-2 text-sm font-semibold">{quiz ? "Nombre de questions" : exos ? "Nombre d'exercices" : "Nombre de cartes"}</p>
           <Segmented
             label="Nombre"
             value={nombre}
             onChange={setNombre}
-            options={(quiz ? [5, 10, 15, 20] : [10, 20, 30]).map((n) => ({ value: n, label: String(n) }))}
+            options={(quiz ? [5, 10, 15, 20] : exos ? [3, 5, 8] : [10, 20, 30]).map((n) => ({ value: n, label: String(n) }))}
           />
         </div>
-        {quiz && (
+        {withLevel && (
           <div>
             <p className="mb-2 text-sm font-semibold">Difficulté</p>
             <Segmented label="Difficulté" value={difficulte} onChange={setDifficulte} options={DIFFICULTES} />
@@ -343,7 +361,7 @@ function GenerateOptions({
         )}
         <button
           type="button"
-          onClick={() => onGenerate(action, quiz ? { nombre, difficulte } : { nombre })}
+          onClick={() => onGenerate(action, withLevel ? { nombre, difficulte } : { nombre })}
           className={`inline-flex min-h-12 w-full items-center justify-center gap-2 rounded-xl bg-linear-to-r font-semibold text-white shadow-lg transition hover:brightness-110 active:scale-[0.98] ${KIND_LOOK[action].gradient}`}
         >
           Générer avec l'IA
@@ -557,7 +575,10 @@ function Bubble({ message, titre, onRetry }: { message: ChatMessage; titre: stri
       <div className="rounded-2xl rounded-bl-md bg-slate-100 px-3.5 py-2.5 text-sm leading-relaxed dark:bg-slate-800">
         <RichText text={message.texte} />
       </div>
-      <SimplifyButton text={message.texte} contexte={titre} className="mt-0.5" />
+      <div className="mt-0.5 flex items-center">
+        <SimplifyButton text={message.texte} contexte={titre} />
+        <ListenButton compact texts={[message.texte]} label="Réponse de l'IA" />
+      </div>
     </div>
   );
 }

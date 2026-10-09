@@ -4,7 +4,18 @@ import { addDays, daysBetween, today } from "./planning";
 
 const KEY = "ed-serie";
 
-export type Activite = "quiz" | "flashcards" | "planning" | "generation" | "question" | "redaction" | "edition";
+export type Activite =
+  | "quiz"
+  | "flashcards"
+  | "planning"
+  | "generation"
+  | "question"
+  | "redaction"
+  | "edition"
+  | "exercice"
+  | "jeu"
+  | "copie"
+  | "devoir";
 
 export interface SerieData {
   /** Jour local AAAA-MM-JJ → nombre d'activités de chaque type. */

@@ -203,6 +203,12 @@ body {
 .mm-scroll::-webkit-scrollbar { width: 8px; }
 .mm-scroll::-webkit-scrollbar-thumb { @apply rounded-full bg-slate-300 dark:bg-slate-700; }
 
+/* Notifications : en haut de l'écran quand une fenêtre est ouverte, pour ne pas cacher ses boutons (en bas sur téléphone). */
+body:has([role="dialog"][aria-modal="true"]) .toasts {
+  top: calc(0.75rem + var(--safe-top));
+  bottom: auto !important;
+}
+
 /* ---------- Fiches ---------- */
 .fiche {
   --paper: #ffffff;

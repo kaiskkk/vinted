@@ -1,4 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import {
   CardsIcon,
@@ -128,6 +131,8 @@ export function QuizView({ initial, onBack }: { initial: QuizDoc; onBack: () => 
       actions={
         <>
           <SavedIndicator at={savedAt} className="mr-1 hidden sm:inline-flex" />
+          {!editing && <ListenButton compact texts={() => docSegments(doc)} label={`Quiz : ${doc.titre}`} />}
+          {!editing && <ShareButton compact kind="quiz" id={doc.id} titre={doc.titre} />}
           <button
             type="button"
             className={btn.icon}
@@ -261,6 +266,12 @@ export function QuizView({ initial, onBack }: { initial: QuizDoc; onBack: () => 
           <div className="h-2 flex-1 overflow-hidden rounded-full bg-slate-200 dark:bg-slate-800" aria-hidden="true">
             <div className="h-full rounded-full bg-linear-to-r from-emerald-500 to-teal-500 transition-all" style={{ width: `${pct}%` }} />
           </div>
+          <ListenButton
+            compact
+            className="-my-2"
+            texts={() => [current.question, ...current.choix.map((c, i) => `Réponse ${"ABCDEF"[i]} : ${c}`)]}
+            label={`Question ${run.index + 1}`}
+          />
         </div>
 
         <section key={current.id} className="mt-5 animate-slide-up">

@@ -13,13 +13,20 @@ export function PrintButtons({ compact = false }: { compact?: boolean }) {
   const toast = useToast();
   return (
     <>
-      <button type="button" className={compact ? btn.icon : btn.secondary} onClick={printPage} title="Imprimer" aria-label="Imprimer">
+      <button
+        type="button"
+        className={compact ? btn.icon : `${btn.secondary} max-sm:min-w-11 max-sm:px-3`}
+        onClick={printPage}
+        title="Imprimer"
+        aria-label="Imprimer"
+      >
         <PrinterIcon size={17} />
-        {!compact && "Imprimer"}
+        {/* Sur téléphone, les icônes seules laissent la place aux autres boutons. */}
+        {!compact && <span className="max-sm:sr-only">Imprimer</span>}
       </button>
       <button
         type="button"
-        className={compact ? btn.icon : btn.secondary}
+        className={compact ? btn.icon : `${btn.secondary} max-sm:min-w-11 max-sm:px-3`}
         title="Exporter en PDF"
         aria-label="Exporter en PDF"
         onClick={() => {
@@ -28,7 +35,7 @@ export function PrintButtons({ compact = false }: { compact?: boolean }) {
         }}
       >
         <DownloadIcon size={17} />
-        {!compact && "PDF"}
+        {!compact && <span className="max-sm:sr-only">PDF</span>}
       </button>
     </>
   );

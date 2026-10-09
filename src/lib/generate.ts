@@ -2,9 +2,11 @@
 import type { Difficulte, Niveau, TypeEtude } from "../../shared/study";
 import { generateEtude, generateMapFromCourse, type SourceEtude } from "./api";
 import {
+  exercicesFromIA,
   ficheFromIA,
   flashcardsFromIA,
   friseFromIA,
+  jeuFromIA,
   linkMap,
   quizFromIA,
   resumeFromIA,
@@ -57,6 +59,12 @@ export async function generateDoc(
       break;
     case "frise":
       doc = friseFromIA(await generateEtude("frise", src, niveau, options, signal), classeurId);
+      break;
+    case "exercices":
+      doc = exercicesFromIA(await generateEtude("exercices", src, niveau, options, signal), options.difficulte ?? "moyen", classeurId);
+      break;
+    case "jeu":
+      doc = jeuFromIA(await generateEtude("jeu", src, niveau, options, signal), classeurId);
       break;
   }
   if (signal?.aborted) throw new DOMException("Annulé", "AbortError");

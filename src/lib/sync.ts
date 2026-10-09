@@ -2,11 +2,12 @@
 // Le site continue de lire et d'écrire dans le localStorage, comme avant les comptes : chaque écriture
 // d'une donnée (carte, document, classeur, série, niveau) est repérée et envoyée en ligne peu après.
 // Les index (listes) ne sont pas envoyés : ils sont reconstruits après chaque récupération.
+import { mergeAgenda } from "./agenda";
 import { rebuildDocIndexes } from "./docs";
 import { mergeSerie, parseSerie } from "./serie";
 import { rebuildMapIndex } from "./storage";
 
-const SINGLETONS = ["ed-liens-cartes", "ed-niveau", "ed-serie"];
+const SINGLETONS = ["ed-liens-cartes", "ed-niveau", "ed-serie", "ed-agenda"];
 const INDEX_KEYS = ["mm-index", "ed-docs", "ed-classeurs"];
 const CONTENT = /^(mm-map|ed-doc|ed-classeur):./;
 
@@ -107,6 +108,7 @@ export function mergeValue(key: string, local: string, remote: string): string {
     }
   }
   if (key === "ed-niveau") return local;
+  if (key === "ed-agenda") return mergeAgenda(remote, local);
   return updatedAtOf(local) > updatedAtOf(remote) ? local : remote;
 }
 

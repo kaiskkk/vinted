@@ -25,9 +25,23 @@ import { fold, formatDate, plural } from "../lib/format";
 import { isDue } from "../lib/leitner";
 import { downloadBackup, importAll, listLibrary, type ItemKind, type LibraryItem } from "../lib/library";
 import { today } from "../lib/planning";
+import { dayLabel, genreOf, upcomingAgenda } from "../lib/agenda";
 import { listMaps } from "../lib/storage";
 
-type Filter = "tout" | "classeur" | "carte" | "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise" | "redaction";
+type Filter =
+  | "tout"
+  | "classeur"
+  | "carte"
+  | "fiche"
+  | "revision"
+  | "quiz"
+  | "flashcards"
+  | "resume"
+  | "exercices"
+  | "jeu"
+  | "frise"
+  | "redaction"
+  | "copie";
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "tout", label: "Tout" },
   { value: "classeur", label: "Classeurs" },
@@ -37,8 +51,11 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "quiz", label: "Quiz" },
   { value: "flashcards", label: "Flashcards" },
   { value: "resume", label: "Résumés" },
+  { value: "exercices", label: "Exercices" },
+  { value: "jeu", label: "Jeux" },
   { value: "frise", label: "Frises" },
   { value: "redaction", label: "Devoirs" },
+  { value: "copie", label: "Copies" },
 ];
 const matches = (f: Filter, kind: ItemKind) => f === "tout" || f === kind || (f === "revision" && kind === "planning");
 
@@ -51,8 +68,12 @@ function modeCounts(items: LibraryItem[]): Record<Mode, number> {
     revision: count(["revision", "planning"]),
     quiz: count(["quiz"]),
     flashcards: count(["flashcards"]),
+    exercices: count(["exercices"]),
+    jeux: count(["jeu"]),
     frise: count(["frise"]),
     redaction: count(["redaction"]),
+    copie: count(["copie"]),
+    agenda: upcomingAgenda().length,
   };
 }
 
@@ -93,6 +114,7 @@ export default function Home() {
   const toast = useToast();
   const [items, setItems] = useState<LibraryItem[]>(listLibrary);
   const [todo] = useState<TodayItem[]>(todayItems);
+  const [devoirs] = useState(() => upcomingAgenda());
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("tout");
   const [showAll, setShowAll] = useState(false);
@@ -178,7 +200,7 @@ export default function Home() {
           </p>
         </section>
 
-        {todo.length > 0 && (
+        {todo.length + devoirs.length > 0 && (
           <section className="mt-8" aria-labelledby="aujourdhui">
             <h2
               id="aujourdhui"
@@ -186,7 +208,38 @@ export default function Home() {
             >
               <ClockIcon size={15} /> Aujourd'hui
             </h2>
-            <ul className="grid gap-2 sm:grid-cols-2">
+            <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {devoirs.map((d) => {
+                const g = genreOf(d.genre);
+                const late = d.date < today();
+                return (
+                  <li key={d.id}>
+                    <button
+                      type="button"
+                      onClick={() => openMode("agenda")}
+                      className={`${card} flex min-h-16 w-full items-center gap-3 px-3 py-2 text-left transition hover:-translate-y-0.5 hover:shadow-md`}
+                    >
+                      <span
+                        className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-base shadow-sm ${MODE_INFO.agenda.gradient}`}
+                        aria-hidden="true"
+                      >
+                        {g.emoji}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate font-medium">{d.titre}</span>
+                        <span
+                          className={`block truncate text-xs ${late ? "font-semibold text-red-600 dark:text-red-400" : "text-slate-500 dark:text-slate-400"}`}
+                        >
+                          {g.label}
+                          {d.matiere && ` de ${d.matiere}`} · {late ? "en retard" : dayLabel(d.date)}
+                          {d.heure && ` à ${d.heure.replace(":", "h")}`}
+                        </span>
+                      </span>
+                      <ChevronRightIcon size={18} className="shrink-0 text-slate-400" />
+                    </button>
+                  </li>
+                );
+              })}
               {todo.map((t) => (
                 <li key={t.id}>
                   <button

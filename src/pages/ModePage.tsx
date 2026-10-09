@@ -15,7 +15,7 @@ import { generateDoc } from "../lib/generate";
 import { listLibrary } from "../lib/library";
 import { addDays, buildPlanning, parseChapitres, today } from "../lib/planning";
 
-type StudyMode = Exclude<Mode, "general" | "cartes" | "redaction">;
+type StudyMode = Exclude<Mode, "general" | "cartes" | "redaction" | "copie" | "agenda">;
 
 interface ModeConfig {
   kinds: DocType[];
@@ -67,6 +67,25 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
     nombres: [10, 20, 30],
     defaultNombre: 20,
     empty: "Des cartes recto / verso à retourner d'un tap, revues au bon moment grâce à la répétition espacée.",
+  },
+  exercices: {
+    kinds: ["exercices"],
+    type: "exercices",
+    loading: "L'IA prépare tes exercices…",
+    createLabel: "Créer des exercices avec l'IA",
+    createHint: "Des exercices comme en classe, avec indices et correction étape par étape.",
+    nombres: [3, 5, 8],
+    defaultNombre: 5,
+    difficulte: true,
+    empty: "Entraîne-toi sur ton cours : demande un indice quand tu bloques, puis découvre la correction étape par étape.",
+  },
+  jeux: {
+    kinds: ["jeu"],
+    type: "jeu",
+    loading: "L'IA prépare tes jeux…",
+    createLabel: "Créer des jeux avec l'IA",
+    createHint: "Relier les paires, compléter les textes à trous, remplir des mots croisés.",
+    empty: "Révise en t'amusant : paires à relier, textes à trous et mots croisés à partir de ton cours.",
   },
   frise: {
     kinds: ["frise"],
@@ -296,7 +315,9 @@ function ClaudeForm({ mode, onCancel }: { mode: StudyMode; onCancel: () => void 
 
           {config.nombres && (
             <section>
-              <h2 className="mb-2 text-sm font-semibold">{mode === "quiz" ? "Nombre de questions" : "Nombre de cartes"}</h2>
+              <h2 className="mb-2 text-sm font-semibold">
+                {mode === "quiz" ? "Nombre de questions" : mode === "exercices" ? "Nombre d'exercices" : "Nombre de cartes"}
+              </h2>
               <Segmented label="Nombre" value={nombre} onChange={setNombre} options={config.nombres.map((n) => ({ value: n, label: String(n) }))} />
             </section>
           )}

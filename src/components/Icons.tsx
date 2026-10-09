@@ -268,3 +268,38 @@ export function Spinner({ className = "" }: { className?: string }) {
     </svg>
   );
 }
+export const CalculatorIcon = make(
+  <>
+    <rect x="4" y="2" width="16" height="20" rx="2" />
+    <path d="M8 6h8M8 11h.01M12 11h.01M16 11h.01M8 15h.01M12 15h.01M16 15v3M8 18h4" />
+  </>,
+);
+export const PuzzleIcon = make(
+  <path d="M15.4 8.6H18a2 2 0 0 1 2 2v2.2a2.2 2.2 0 1 0 0 4.4V19a2 2 0 0 1-2 2h-2.2a2.2 2.2 0 1 0-4.4 0H9a2 2 0 0 1-2-2v-2.6a2.2 2.2 0 1 1 0-4.4V9.6a1 1 0 0 1 1-1h2.6a2.2 2.2 0 1 1 4.4 0Z" />,
+);
+export const ClipboardCheckIcon = make(
+  <>
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2M9 14l2 2 4-4" />
+  </>,
+);
+export const CalendarCheckIcon = make(
+  <>
+    <rect x="3" y="4" width="18" height="18" rx="2" />
+    <path d="M16 2v4M8 2v4M3 10h18M9 16l2 2 4-4" />
+  </>,
+);
+export const ShareIcon = make(
+  <>
+    <circle cx="18" cy="5" r="3" />
+    <circle cx="6" cy="12" r="3" />
+    <circle cx="18" cy="19" r="3" />
+    <path d="m8.6 13.5 6.8 4M15.4 6.5l-6.8 4" />
+  </>,
+);
+export const VolumeIcon = make(<path d="M11 5 6 9H2v6h4l5 4V5ZM15.5 8.5a5 5 0 0 1 0 7M19 5a10 10 0 0 1 0 14" />);
+export const PauseIcon = make(<path d="M6 4h4v16H6zM14 4h4v16h-4z" />);
+export const PlayIcon = make(<path d="m6 3 14 9-14 9V3Z" />);
+export const StopIcon = make(<rect x="5" y="5" width="14" height="14" rx="2" />);
+export const BellIcon = make(<path d="M6 8a6 6 0 0 1 12 0c0 7 3 9 3 9H3s3-2 3-9M10.3 21a1.94 1.94 0 0 0 3.4 0" />);
+export const LinkIcon = make(<path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" />);

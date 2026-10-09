@@ -1,4 +1,7 @@
 import { useState } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { CheckIcon, PencilIcon, PlusIcon, RedoIcon, TrashIcon, UndoIcon } from "../../components/Icons";
 import { btn } from "../../components/Modal";
@@ -62,7 +65,13 @@ export function RevisionView({ initial, onBack }: { initial: RevisionDoc; onBack
           {editing ? <CheckIcon size={17} /> : <PencilIcon size={16} />}
           {editing ? "Terminé" : "Modifier"}
         </button>
-        {!editing && <PrintButtons />}
+        {!editing && (
+          <>
+            <ListenButton texts={() => docSegments(doc)} label={`Révision : ${doc.titre}`} />
+            <ShareButton kind={doc.type} id={doc.id} titre={doc.titre} />
+            <PrintButtons />
+          </>
+        )}
       </div>
 
       <Page width="max-w-4xl" className="print-page">

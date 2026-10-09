@@ -6,15 +6,20 @@ import {
   cleanText,
   isNiveau,
   isTypeDevoir,
+  sanitizeExercice,
   sanitizeFrise,
   sanitizePlan,
   sanitizeQuestion,
   sanitizeRelecture,
   type BlocType,
+  type CopieIA,
   type Difficulte,
+  type ExerciceIA,
+  type ExercicesIA,
   type FicheIA,
   type FlashcardsIA,
   type FriseIA,
+  type JeuIA,
   type Niveau,
   type PlanIA,
   type QuizIA,
@@ -26,8 +31,20 @@ import {
 import { normalizeHex } from "../../shared/aiMap";
 import { newId } from "./mapModel";
 
-export type DocType = "fiche" | "revision" | "planning" | "quiz" | "flashcards" | "resume" | "frise" | "redaction";
-export const DOC_TYPES: DocType[] = ["fiche", "revision", "planning", "quiz", "flashcards", "resume", "frise", "redaction"];
+export type DocType = "fiche" | "revision" | "planning" | "quiz" | "flashcards" | "resume" | "frise" | "redaction" | "exercices" | "jeu" | "copie";
+export const DOC_TYPES: DocType[] = [
+  "fiche",
+  "revision",
+  "planning",
+  "quiz",
+  "flashcards",
+  "resume",
+  "frise",
+  "redaction",
+  "exercices",
+  "jeu",
+  "copie",
+];
 
 interface DocBase {
   id: string;
@@ -167,7 +184,60 @@ export interface RedactionDoc extends DocBase {
   relectures: Relecture[];
 }
 
-export type StudyDoc = FicheDoc | RevisionDoc | PlanningDoc | QuizDoc | FlashcardsDoc | ResumeDoc | FriseDoc | RedactionDoc;
+export type ExerciceStatut = "a-faire" | "reussi" | "a-revoir";
+export interface Exercice extends ExerciceIA {
+  id: string;
+  /** Réponse écrite (ou dictée) par l'élève. */
+  maReponse: string;
+  statut: ExerciceStatut;
+}
+export interface ExercicesDoc extends DocBase {
+  type: "exercices";
+  difficulte: Difficulte;
+  exercices: Exercice[];
+}
+
+export interface JeuDoc extends DocBase {
+  type: "jeu";
+  paires: { id: string; terme: string; definition: string }[];
+  trous: { id: string; texte: string }[];
+  motsCroises: { id: string; mot: string; indice: string }[];
+  /** Meilleurs résultats : temps (ms) pour les paires et les mots croisés, score (%) pour les trous. */
+  records: { paires?: number; trous?: number; motsCroises?: number };
+}
+
+export interface CopieErreur {
+  id: string;
+  extrait: string;
+  explication: string;
+  correction: string;
+  conseil: string;
+  /** Cochée par l'élève quand il a compris son erreur. */
+  comprise: boolean;
+}
+export interface CopieDoc extends DocBase {
+  type: "copie";
+  matiere: string;
+  note: string;
+  bilan: string;
+  pointsForts: string[];
+  erreurs: CopieErreur[];
+  notions: string[];
+  exercices: Exercice[];
+}
+
+export type StudyDoc =
+  | FicheDoc
+  | RevisionDoc
+  | PlanningDoc
+  | QuizDoc
+  | FlashcardsDoc
+  | ResumeDoc
+  | FriseDoc
+  | RedactionDoc
+  | ExercicesDoc
+  | JeuDoc
+  | CopieDoc;
 export type DocOf<T extends DocType> = Extract<StudyDoc, { type: T }>;
 
 export interface DocSummary {
@@ -337,6 +407,51 @@ export function friseFromIA(ia: FriseIA, classeurId?: string): FriseDoc {
     type: "frise",
     periodes: ia.periodes.map((p) => ({ id: newId(), ...p })),
     evenements: ia.evenements.map((e) => ({ id: newId(), ...e })),
+  };
+}
+
+const toExercice = (e: ExerciceIA): Exercice => ({ id: newId(), ...e, maReponse: "", statut: "a-faire" });
+
+export function exercicesFromIA(ia: ExercicesIA, difficulte: Difficulte, classeurId?: string): ExercicesDoc {
+  return { ...fresh(ia.titre, classeurId), type: "exercices", difficulte, exercices: ia.exercices.map(toExercice) };
+}
+
+export function jeuFromIA(ia: JeuIA, classeurId?: string): JeuDoc {
+  return {
+    ...fresh(ia.titre, classeurId),
+    type: "jeu",
+    paires: ia.paires.map((p) => ({ id: newId(), ...p })),
+    trous: ia.trous.map((t) => ({ id: newId(), ...t })),
+    motsCroises: ia.motsCroises.map((m) => ({ id: newId(), ...m })),
+    records: {},
+  };
+}
+
+export function copieFromIA(ia: CopieIA, classeurId?: string): CopieDoc {
+  return {
+    ...fresh(ia.titre, classeurId),
+    type: "copie",
+    matiere: ia.matiere,
+    note: ia.note,
+    bilan: ia.bilan,
+    pointsForts: ia.pointsForts,
+    erreurs: ia.erreurs.map((e) => ({ id: newId(), ...e, comprise: false })),
+    notions: ia.notions,
+    exercices: ia.exercices.map(toExercice),
+  };
+}
+
+/** Paquet de flashcards à partir des erreurs d'une copie : l'erreur au recto, la correction au verso. */
+export function flashcardsFromCopie(copie: CopieDoc): FlashcardsDoc {
+  return {
+    ...fresh(`Mes erreurs — ${copie.titre}`.slice(0, 140), copie.classeurId),
+    type: "flashcards",
+    cartes: copie.erreurs.map((e) =>
+      newCard(
+        e.extrait ? `Erreur : « ${e.extrait} ». Quelle est la bonne réponse ?` : e.explication,
+        [e.correction, e.conseil].filter(Boolean).join("\n\n"),
+      ),
+    ),
   };
 }
 
@@ -542,7 +657,89 @@ export function normalizeDoc(raw: unknown): StudyDoc | null {
           .slice(-20),
       };
     }
+    case "exercices":
+      return {
+        ...base,
+        type,
+        difficulte: (["facile", "moyen", "difficile"] as const).includes(r.difficulte as Difficulte) ? (r.difficulte as Difficulte) : "moyen",
+        exercices: normalizeExercices(r.exercices),
+      };
+    case "jeu": {
+      const rec = obj(r.records);
+      const pos = (v: unknown) => (typeof v === "number" && Number.isFinite(v) && v > 0 ? v : undefined);
+      const records: JeuDoc["records"] = {};
+      if (pos(rec.paires)) records.paires = pos(rec.paires);
+      if (pos(rec.trous)) records.trous = pos(rec.trous);
+      if (pos(rec.motsCroises)) records.motsCroises = pos(rec.motsCroises);
+      return {
+        ...base,
+        type,
+        paires: list(r.paires)
+          .map((p) => {
+            const o = obj(p);
+            return { id: idOf(o.id), terme: cleanText(o.terme, 80), definition: cleanText(o.definition, 220) };
+          })
+          .filter((p) => p.terme && p.definition),
+        trous: list(r.trous)
+          .map((t) => {
+            const o = obj(t);
+            return { id: idOf(o.id), texte: cleanText(o.texte, 400) };
+          })
+          .filter((t) => /\[[^\]\n]+\]/.test(t.texte)),
+        motsCroises: list(r.motsCroises)
+          .map((m) => {
+            const o = obj(m);
+            return { id: idOf(o.id), mot: cleanText(o.mot, 30), indice: cleanText(o.indice, 200) };
+          })
+          .filter((m) => m.mot && m.indice),
+        records,
+      };
+    }
+    case "copie":
+      return {
+        ...base,
+        type,
+        matiere: cleanText(r.matiere, 80),
+        note: cleanText(r.note, 20),
+        bilan: cleanText(r.bilan, 1500),
+        pointsForts: list(r.pointsForts)
+          .map((p) => cleanText(p, 400))
+          .filter(Boolean),
+        erreurs: list(r.erreurs).map((e) => {
+          const o = obj(e);
+          return {
+            id: idOf(o.id),
+            extrait: cleanText(o.extrait, 300),
+            explication: cleanText(o.explication, 800),
+            correction: cleanText(o.correction, 800),
+            conseil: cleanText(o.conseil, 500),
+            comprise: Boolean(o.comprise),
+          };
+        }),
+        notions: list(r.notions)
+          .map((n) => cleanText(n, 200))
+          .filter(Boolean),
+        exercices: normalizeExercices(r.exercices),
+      };
   }
+}
+
+const STATUTS: ExerciceStatut[] = ["a-faire", "reussi", "a-revoir"];
+
+function normalizeExercices(raw: unknown): Exercice[] {
+  return list(raw).flatMap((e) => {
+    const o = obj(e);
+    const clean = sanitizeExercice(o);
+    if (!clean) return [];
+    return [
+      {
+        ...clean,
+        id: idOf(o.id),
+        maReponse: typeof o.maReponse === "string" ? o.maReponse.slice(0, 5000) : "",
+        statut: STATUTS.includes(o.statut as ExerciceStatut) ? (o.statut as ExerciceStatut) : "a-faire",
+      },
+    ];
+  });
 }
 
 const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n > 1 ? many : one}`;
@@ -568,6 +765,20 @@ export function docInfo(doc: StudyDoc): string {
     case "redaction": {
       const mots = wordCount(doc.brouillon);
       return mots ? `${plural(mots, "mot")} écrits` : doc.plan ? "Plan prêt" : "À commencer";
+    }
+    case "exercices": {
+      const ok = doc.exercices.filter((e) => e.statut === "reussi").length;
+      return `${plural(doc.exercices.length, "exercice")}${ok ? ` · ${ok} réussi${ok > 1 ? "s" : ""}` : ""}`;
+    }
+    case "jeu":
+      return (
+        [doc.paires.length && "Paires", doc.trous.length && "Trous", doc.motsCroises.length >= 3 && "Mots croisés"].filter(Boolean).join(" · ") ||
+        "Jeu"
+      );
+    case "copie": {
+      const reste = doc.erreurs.filter((e) => !e.comprise).length;
+      const erreurs = reste ? plural(reste, "erreur") + " à comprendre" : "Tout est compris";
+      return doc.note ? `${doc.note} · ${erreurs}` : erreurs;
     }
   }
 }

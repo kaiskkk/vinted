@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from "react";
 import { PencilIcon, PlusIcon, SearchIcon, TrashIcon, UploadIcon, XIcon } from "../components/Icons";
 import { MODE_INFO } from "../components/looks";
 import { Modal, btn } from "../components/Modal";
+import { ShareButton } from "../components/ShareButton";
 import { useToast } from "../components/Toasts";
 import { Page, PageHeader } from "../components/ui";
 import { goHome, openMap } from "../hooks/useHashRoute";
@@ -338,6 +339,7 @@ export default function MindMaps() {
                     )}
                     {renaming?.id !== m.id && (
                       <div className={`flex shrink-0 transition ${actionsVisible}`}>
+                        <ShareButton compact kind="carte" id={m.id} titre={m.name} className="tap:h-11 tap:w-11" />
                         <button
                           type="button"
                           className={`${btn.icon} tap:h-11 tap:w-11`}

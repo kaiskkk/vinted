@@ -4,7 +4,7 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { sanitizeAiMap, type AiMap } from "../shared/aiMap";
-import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeEtude, sanitizePlan, sanitizeRelecture, type TypeEtude } from "../shared/study";
+import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeCopie, sanitizeEtude, sanitizePlan, sanitizeRelecture, type TypeEtude } from "../shared/study";
 import { MODEL, UserFacingError, type GenerateInput, type MindMapGenerator } from "./claude";
 import type { VerifyUser } from "./auth";
 import type { StudyAI } from "./study";
@@ -110,11 +110,36 @@ const LireBody = z.object({
     .regex(/^[A-Za-z0-9+/=\s]+$/, "Fichier illisible."),
 });
 
+const Base64 = z
+  .string()
+  .min(1)
+  .regex(/^[A-Za-z0-9+/=\s]+$/, "Photo illisible.");
+
+const CopieBody = z
+  .object({
+    images: z
+      .array(
+        z.object({
+          media: z.enum(["image/jpeg", "image/png", "image/webp", "image/gif"], { error: "Envoie des photos (JPEG ou PNG) de ta copie." }),
+          data: Base64,
+        }),
+      )
+      .min(1, "Ajoute au moins une photo de ta copie.")
+      .max(4, "4 pages au maximum à la fois."),
+    matiere: z.string().max(100).optional(),
+    consigne: z.string().max(500).optional(),
+    niveau: Niveau,
+  })
+  .refine((b) => b.images.reduce((n, i) => n + i.data.length, 0) <= LIRE_MAX_CHARS, {
+    message: "Photos trop lourdes : envoie moins de pages à la fois.",
+  });
+
 /** Plafond des réponses par type, au cas où Claude en ferait trop. */
 function limitCount(type: TypeEtude, doc: ReturnType<typeof sanitizeEtude>, nombre?: number) {
   if (!nombre) return doc;
   if (type === "quiz" && "questions" in doc) return { ...doc, questions: doc.questions.slice(0, nombre) };
   if (type === "flashcards" && "cartes" in doc) return { ...doc, cartes: doc.cartes.slice(0, nombre) };
+  if (type === "exercices" && "exercices" in doc) return { ...doc, exercices: doc.exercices.slice(0, nombre) };
   return doc;
 }
 
@@ -336,6 +361,16 @@ export function createApi({
     simplifier: (body: unknown, code?: Credentials | string | null) =>
       handle("simplifier", body, code, SimplifierBody, async (input, ai) => ({ explication: await ai.simplifier(input) })),
 
+    copie: (body: unknown, code?: Credentials | string | null) =>
+      handle("copie", body, code, CopieBody, async (input, ai) => {
+        const copie = sanitizeCopie(
+          await ai.copie({ ...input, images: input.images.map((i) => ({ media: i.media, data: i.data.replace(/\s+/g, "") })) }),
+        );
+        if (!copie.erreurs.length && !copie.bilan)
+          throw new UserFacingError("L'IA n'a pas su lire cette copie. Reprends les photos bien à plat et nettes.", 422);
+        return copie;
+      }),
+
     lire: (body: unknown, code?: Credentials | string | null) =>
       handle("lecture", body, code, LireBody, async (input, ai) => ({
         texte: (await ai.lire({ media: input.media, data: input.data.replace(/\s+/g, "") })).slice(0, SOURCE_MAX),
@@ -352,6 +387,7 @@ export const POST_ROUTES = {
   "/api/chat": "chat",
   "/api/simplifier": "simplifier",
   "/api/lire": "lire",
+  "/api/copie": "copie",
 } as const satisfies Record<string, keyof Api>;
 
 export type Api = ReturnType<typeof createApi>;
@@ -360,7 +396,7 @@ export const TOO_LARGE = "Les données envoyées sont trop volumineuses.";
 
 const MAX_BODY_CHARS = 1_000_000;
 // Une photo de cours en base64 pèse plus lourd que le reste.
-const bodyLimit = (route: string) => (route === "/api/lire" ? LIRE_MAX_CHARS + 10_000 : MAX_BODY_CHARS);
+const bodyLimit = (route: string) => (route === "/api/lire" || route === "/api/copie" ? LIRE_MAX_CHARS + 10_000 : MAX_BODY_CHARS);
 
 /** Gestionnaire HTTP au format web standard (Request → Response), utilisé par Netlify. */
 export function createFetchHandler(api: Api) {

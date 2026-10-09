@@ -4,9 +4,12 @@ import { MODE_OF_KIND } from "../components/looks";
 import { btn } from "../components/Modal";
 import { goHome, openClasseur, openMode } from "../hooks/useHashRoute";
 import { loadClasseur, loadDoc, type StudyDoc } from "../lib/docs";
+import { CopieView } from "./docs/CopieView";
+import { ExercicesView } from "./docs/ExercicesView";
 import { FicheView } from "./docs/FicheView";
 import { FlashcardsView } from "./docs/FlashcardsView";
 import { FriseView } from "./docs/FriseView";
+import { JeuView } from "./docs/JeuView";
 import { PlanningView } from "./docs/PlanningView";
 import { QuizView } from "./docs/QuizView";
 import { RedactionView } from "./docs/RedactionView";
@@ -50,5 +53,11 @@ export default function DocPage({ id }: { id: string }) {
       return <FriseView initial={doc} onBack={back} />;
     case "redaction":
       return <RedactionView initial={doc} onBack={back} />;
+    case "exercices":
+      return <ExercicesView initial={doc} onBack={back} />;
+    case "jeu":
+      return <JeuView initial={doc} onBack={back} />;
+    case "copie":
+      return <CopieView initial={doc} onBack={back} />;
   }
 }

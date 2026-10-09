@@ -1,6 +1,8 @@
 import { lazy, Suspense, type ComponentType } from "react";
 import { AccessCodePrompt } from "./components/AccessCodePrompt";
 import { Spinner } from "./components/Icons";
+import { AgendaWatcher } from "./components/AgendaWatcher";
+import { ReadAloudBar } from "./components/ReadAloud";
 import { SerieWatcher } from "./components/Serie";
 import { ToastProvider } from "./components/Toasts";
 import { useHashRoute } from "./hooks/useHashRoute";
@@ -39,6 +41,9 @@ const ModePage = lazyPage(() => import("./pages/ModePage"));
 const DocPage = lazyPage(() => import("./pages/DocPage"));
 const RedactionPage = lazyPage(() => import("./pages/Redaction"));
 const SeriePage = lazyPage(() => import("./pages/Serie"));
+const CopiePage = lazyPage(() => import("./pages/Copie"));
+const AgendaPage = lazyPage(() => import("./pages/Agenda"));
+const PartagePage = lazyPage(() => import("./pages/Partage"));
 
 function Loading({ label }: { label: string }) {
   return (
@@ -68,10 +73,15 @@ export default function App() {
     case "serie":
       page = <SeriePage />;
       break;
+    case "partage":
+      page = <PartagePage key={route.id} id={route.id} />;
+      break;
     case "mode":
       if (route.mode === "cartes") page = <MindMaps />;
       else if (route.mode === "general") page = <GeneralPage />;
       else if (route.mode === "redaction") page = <RedactionPage />;
+      else if (route.mode === "copie") page = <CopiePage />;
+      else if (route.mode === "agenda") page = <AgendaPage />;
       else page = <ModePage key={route.mode} mode={route.mode} />;
       break;
     default:
@@ -82,6 +92,8 @@ export default function App() {
       <Suspense fallback={<Loading label="Chargement…" />}>{page}</Suspense>
       <AccessCodePrompt />
       <SerieWatcher />
+      <AgendaWatcher />
+      <ReadAloudBar />
     </ToastProvider>
   );
 }

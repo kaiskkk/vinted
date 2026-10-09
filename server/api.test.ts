@@ -113,6 +113,16 @@ describe("outils d'étude", () => {
       if (input.type === "fiche") return { titre: "Fiche", sousTitre: "", blocs: [] };
       return { titre: "Cartes", cartes: [{ recto: "Recto", verso: "Verso" }] };
     },
+    copie: async (input) => ({
+      titre: "Contrôle",
+      matiere: input.matiere ?? "",
+      note: "12/20",
+      bilan: "Bon travail.",
+      pointsForts: ["Calculs justes"],
+      erreurs: [{ extrait: "2 + 2 = 5", explication: "Erreur de calcul.", correction: "4", conseil: "Vérifie chaque calcul." }],
+      notions: ["Additions"],
+      exercices: [{ titre: "Ex", enonce: "Calcule 3 + 4.", indices: ["Compte sur tes doigts"], etapes: ["3 + 4 = 7"], reponse: "7" }],
+    }),
     redaction: async (input) =>
       input.mode === "plan"
         ? {
@@ -156,6 +166,16 @@ describe("outils d'étude", () => {
     expect((await api.lire({ media: "image/jpeg", data: "aGVsbG8=" })).body).toEqual({ texte: "Texte lu" });
     expect((await api.lire({ media: "image/heic", data: "aGVsbG8=" })).status).toBe(400);
     expect((await api.lire({ media: "image/png", data: "<script>" })).status).toBe(400);
+  });
+
+  it("analyse d'une copie corrigée : photos validées, réponse nettoyée", async () => {
+    const ok = await api.copie({ images: [{ media: "image/jpeg", data: "aGVsbG8=" }], matiere: "Maths", niveau: "college" });
+    expect(ok.status).toBe(200);
+    expect(ok.body).toMatchObject({ note: "12/20", matiere: "Maths", erreurs: [{ correction: "4" }], exercices: [{ reponse: "7" }] });
+    expect((await api.copie({ images: [] })).body).toMatchObject({ erreur: "Ajoute au moins une photo de ta copie." });
+    expect((await api.copie({ images: [{ media: "application/pdf", data: "aGVsbG8=" }] })).status).toBe(400);
+    const cinq = Array.from({ length: 5 }, () => ({ media: "image/png", data: "aGVsbG8=" }));
+    expect((await api.copie({ images: cinq })).body).toMatchObject({ erreur: "4 pages au maximum à la fois." });
   });
 
   it("aide à la rédaction : plan, relecture, validation", async () => {

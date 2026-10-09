@@ -1,9 +1,12 @@
 import type { AiMap } from "../../shared/aiMap";
 import type {
+  CopieIA,
   Difficulte,
+  ExercicesIA,
   FicheIA,
   FlashcardsIA,
   FriseIA,
+  JeuIA,
   Niveau,
   PlanIA,
   QuizIA,
@@ -142,6 +145,8 @@ interface EtudeResults {
   flashcards: FlashcardsIA;
   resume: ResumeIA;
   frise: FriseIA;
+  exercices: ExercicesIA;
+  jeu: JeuIA;
 }
 
 export interface DevoirInfo {
@@ -186,3 +191,11 @@ export async function getHealth(): Promise<Health | null> {
     return null;
   }
 }
+
+/** Analyse d'une copie corrigée (photos réduites en JPEG, en base64). */
+export const analyserCopie = (
+  images: { media: string; data: string }[],
+  options: { matiere?: string; consigne?: string },
+  niveau: Niveau,
+  signal?: AbortSignal,
+) => post<CopieIA>("/api/copie", { images, ...options, niveau }, signal);

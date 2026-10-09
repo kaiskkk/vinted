@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { ShareButton } from "./ShareButton";
 import { openItem } from "../hooks/useHashRoute";
 import { deleteDoc, loadDoc, renameDoc, saveDoc } from "../lib/docs";
 import { formatDate } from "../lib/format";
@@ -90,6 +91,7 @@ export function DocList({ items, onChange, showType = true }: { items: LibraryIt
             )}
             {renaming?.id !== item.id && (
               <div className={`flex shrink-0 transition ${actionsVisible}`}>
+                <ShareButton compact kind={item.kind} id={item.id} titre={item.titre} />
                 <button
                   type="button"
                   className={btn.icon}

@@ -18,6 +18,7 @@ export function createAI(options: GeneratorOptions = {}) {
     chat: (input) => pick().study.chat(input),
     simplifier: (input) => pick().study.simplifier(input),
     lire: (input) => pick().study.lire(input),
+    copie: (input) => pick().study.copie(input),
   };
   return {
     generator,

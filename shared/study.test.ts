@@ -107,3 +107,55 @@ describe("nettoyage des documents d'étude", () => {
     expect(res.titre).toBe("Résumé");
   });
 });
+
+describe("exercices, jeux et copies", () => {
+  it("garde les exercices complets", async () => {
+    const { sanitizeExercices } = await import("./study");
+    const r = sanitizeExercices({
+      titre: "  ",
+      exercices: [
+        { titre: "Ex 1", enonce: "Calcule 2 + 3.", indices: ["Additionne", "Additionne"], etapes: ["2 + 3 = 5"], reponse: "5" },
+        { enonce: "Sans correction", etapes: [] },
+        { enonce: "", etapes: ["x"] },
+      ],
+    });
+    expect(r.titre).toBe("Exercices");
+    expect(r.exercices).toEqual([{ titre: "Ex 1", enonce: "Calcule 2 + 3.", indices: ["Additionne"], etapes: ["2 + 3 = 5"], reponse: "5" }]);
+  });
+
+  it("nettoie les jeux : paires, trous entre crochets, mots croisés d'un seul mot", async () => {
+    const { sanitizeJeu, crosswordWord } = await import("./study");
+    const j = sanitizeJeu({
+      paires: [
+        { terme: "Magma", definition: "Roche fondue" },
+        { terme: "magma", definition: "Doublon" },
+        { terme: "", definition: "x" },
+      ],
+      trous: [{ texte: "Le [magma] remonte." }, { texte: "Pas de trou ici." }, "La [lave] coule."],
+      motsCroises: [
+        { mot: "Éruption", indice: "Sortie de lave" },
+        { mot: "Al", indice: "Trop court" },
+        { mot: "Plaque tectonique", indice: "Deux mots : PLAQUETECTONIQUE (16 lettres, trop long)" },
+        { mot: "Cratère", indice: "Ouverture du volcan" },
+      ],
+    });
+    expect(j.paires).toEqual([{ terme: "Magma", definition: "Roche fondue" }]);
+    expect(j.trous.map((t) => t.texte)).toEqual(["Le [magma] remonte.", "La [lave] coule."]);
+    expect(j.motsCroises.map((m) => crosswordWord(m.mot))).toEqual(["ERUPTION", "CRATERE"]);
+  });
+
+  it("nettoie l'analyse d'une copie", async () => {
+    const { sanitizeCopie } = await import("./study");
+    const c = sanitizeCopie({
+      note: "12/20",
+      erreurs: [
+        { extrait: "x", explication: "", correction: "" },
+        { explication: "Faux", correction: "Vrai" },
+      ],
+      exercices: [{ enonce: "E", etapes: ["S"] }],
+    });
+    expect(c.titre).toBe("Ma copie");
+    expect(c.erreurs).toHaveLength(1);
+    expect(c.exercices).toHaveLength(1);
+  });
+});

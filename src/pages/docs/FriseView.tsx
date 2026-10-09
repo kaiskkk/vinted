@@ -1,4 +1,7 @@
 import { useEffect, useMemo, useState, type CSSProperties } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { CheckIcon, PencilIcon, PlusIcon, RedoIcon, TrashIcon, UndoIcon } from "../../components/Icons";
 import { btn } from "../../components/Modal";
@@ -148,7 +151,13 @@ export function FriseView({ initial, onBack }: { initial: FriseDoc; onBack: () =
           {editing ? <CheckIcon size={17} /> : <PencilIcon size={16} />}
           {editing ? "Terminé" : "Modifier"}
         </button>
-        {!editing && <PrintButtons />}
+        {!editing && (
+          <>
+            <ListenButton texts={() => docSegments(doc)} label={`Frise : ${doc.titre}`} />
+            <ShareButton kind={doc.type} id={doc.id} titre={doc.titre} />
+            <PrintButtons />
+          </>
+        )}
       </div>
 
       <Page width="max-w-4xl" className="print-page">
@@ -375,7 +384,7 @@ export function FriseView({ initial, onBack }: { initial: FriseDoc; onBack: () =
                       </>
                     ) : (
                       <>
-                        <p className="pt-1 text-right text-sm leading-snug font-bold hyphens-auto" style={{ color }}>
+                        <p className="pt-1 text-right text-sm leading-snug font-bold break-words" style={{ color }}>
                           {e.date || formatYear(e.annee)}
                         </p>
                         <div className="min-w-0">

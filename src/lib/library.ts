@@ -14,6 +14,7 @@ import {
   saveDoc,
   type DocType,
 } from "./docs";
+import { mergeAgenda, readAgenda, type AgendaItem } from "./agenda";
 import { mergeSerie, parseSerie, readSerie, type SerieData } from "./serie";
 import { hydrateMap, listMaps, loadMap, saveMap } from "./storage";
 
@@ -120,6 +121,8 @@ export interface Backup {
   liensCartes: Record<string, string>;
   /** Jours de révision (série 🔥) ; absent des sauvegardes plus anciennes. */
   serie?: SerieData;
+  /** Devoirs et contrôles de l'agenda ; absent des sauvegardes plus anciennes. */
+  agenda?: AgendaItem[];
 }
 
 export function exportAll(): Backup {
@@ -141,6 +144,7 @@ export function exportAll(): Backup {
     }),
     liensCartes: readLinks(),
     serie: readSerie(),
+    agenda: readAgenda(),
   };
 }
 
@@ -205,6 +209,9 @@ export function importAll(raw: unknown): ImportReport {
   if (data.serie && typeof data.serie === "object") {
     const merged = mergeSerie(readSerie(), parseSerie(JSON.stringify(data.serie)));
     localStorage.setItem("ed-serie", JSON.stringify(merged));
+  }
+  if (Array.isArray(data.agenda) && data.agenda.length) {
+    localStorage.setItem("ed-agenda", mergeAgenda(localStorage.getItem("ed-agenda"), JSON.stringify({ items: data.agenda })));
   }
   return report;
 }

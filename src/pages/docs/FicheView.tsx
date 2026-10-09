@@ -1,4 +1,7 @@
 import { useState, type CSSProperties } from "react";
+import { ShareButton } from "../../components/ShareButton";
+import { ListenButton } from "../../components/ReadAloud";
+import { docSegments } from "../../lib/docSpeech";
 import { BLOC_TYPES, type BlocType } from "../../../shared/study";
 import { SavedIndicator } from "../../components/CanvasOverlays";
 import { ArrowDownIcon, ArrowUpIcon, CheckIcon, PencilIcon, PlusIcon, RedoIcon, TrashIcon, UndoIcon, XIcon } from "../../components/Icons";
@@ -106,7 +109,13 @@ export function FicheView({ initial, onBack }: { initial: FicheDoc; onBack: () =
             {editing ? <CheckIcon size={17} /> : <PencilIcon size={16} />}
             {editing ? "Terminé" : "Modifier"}
           </button>
-          {!editing && <PrintButtons />}
+          {!editing && (
+            <>
+              <ListenButton texts={() => docSegments(doc)} label={`Fiche : ${doc.titre}`} />
+              <ShareButton kind={doc.type} id={doc.id} titre={doc.titre} />
+              <PrintButtons />
+            </>
+          )}
         </div>
       </div>
 

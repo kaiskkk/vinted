@@ -4,12 +4,16 @@ import type { Mode } from "../hooks/useHashRoute";
 import type { ItemKind } from "../lib/library";
 import {
   AlignLeftIcon,
+  CalculatorIcon,
+  CalendarCheckIcon,
   CalendarIcon,
   CardsIcon,
+  ClipboardCheckIcon,
   FileTextIcon,
   FolderIcon,
   NetworkIcon,
   NotebookPenIcon,
+  PuzzleIcon,
   QuizIcon,
   TargetIcon,
   TimelineIcon,
@@ -78,6 +82,30 @@ const LOOKS = {
     text: "text-red-600 dark:text-red-300",
     shadow: "shadow-red-500/30",
   },
+  exercices: {
+    gradient: "from-blue-600 to-sky-500",
+    soft: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+    text: "text-blue-600 dark:text-blue-300",
+    shadow: "shadow-blue-500/30",
+  },
+  jeux: {
+    gradient: "from-lime-500 to-green-600",
+    soft: "bg-lime-50 text-lime-800 dark:bg-lime-500/15 dark:text-lime-300",
+    text: "text-lime-700 dark:text-lime-300",
+    shadow: "shadow-lime-500/30",
+  },
+  copie: {
+    gradient: "from-yellow-500 to-amber-600",
+    soft: "bg-yellow-50 text-yellow-800 dark:bg-yellow-500/15 dark:text-yellow-300",
+    text: "text-yellow-700 dark:text-yellow-300",
+    shadow: "shadow-yellow-500/30",
+  },
+  agenda: {
+    gradient: "from-cyan-500 to-blue-500",
+    soft: "bg-cyan-50 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-300",
+    text: "text-cyan-700 dark:text-cyan-300",
+    shadow: "shadow-cyan-500/30",
+  },
   resume: {
     gradient: "from-blue-500 to-indigo-500",
     soft: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
@@ -127,6 +155,30 @@ export const MODE_INFO: Record<Mode, ModeInfo> = {
     icon: (s = 22) => <CardsIcon size={s} />,
     description: "Mémorise avec la répétition espacée",
   },
+  exercices: {
+    ...LOOKS.exercices,
+    label: "Exercices",
+    icon: (s = 22) => <CalculatorIcon size={s} />,
+    description: "Entraîne-toi avec indices et corrigés pas à pas",
+  },
+  jeux: {
+    ...LOOKS.jeux,
+    label: "Jeux",
+    icon: (s = 22) => <PuzzleIcon size={s} />,
+    description: "Paires, textes à trous et mots croisés",
+  },
+  copie: {
+    ...LOOKS.copie,
+    label: "Ma copie",
+    icon: (s = 22) => <ClipboardCheckIcon size={s} />,
+    description: "Photographie ta copie corrigée, comprends tes erreurs",
+  },
+  agenda: {
+    ...LOOKS.agenda,
+    label: "Agenda",
+    icon: (s = 22) => <CalendarCheckIcon size={s} />,
+    description: "Tes devoirs et contrôles, avec rappels",
+  },
   frise: {
     ...LOOKS.frise,
     label: "Frise",
@@ -152,6 +204,9 @@ export const KIND_LOOK: Record<ItemKind, Look> = {
   resume: { ...LOOKS.resume, label: "Résumé", icon: (s = 18) => <AlignLeftIcon size={s} /> },
   frise: { ...LOOKS.frise, label: "Frise", icon: (s = 18) => <TimelineIcon size={s} /> },
   redaction: { ...LOOKS.redaction, label: "Devoir", icon: (s = 18) => <NotebookPenIcon size={s} /> },
+  exercices: { ...LOOKS.exercices, label: "Exercices", icon: (s = 18) => <CalculatorIcon size={s} /> },
+  jeu: { ...LOOKS.jeux, label: "Jeux", icon: (s = 18) => <PuzzleIcon size={s} /> },
+  copie: { ...LOOKS.copie, label: "Copie", icon: (s = 18) => <ClipboardCheckIcon size={s} /> },
 };
 
 /** Mode où l'on retombe en quittant un document qui n'est pas dans un classeur. */
@@ -166,6 +221,9 @@ export const MODE_OF_KIND: Record<ItemKind, Mode> = {
   resume: "general",
   frise: "frise",
   redaction: "redaction",
+  exercices: "exercices",
+  jeu: "jeux",
+  copie: "copie",
 };
 
 /** Pastille colorée avec l'icône d'un type. */

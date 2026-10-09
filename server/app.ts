@@ -13,7 +13,7 @@ export function createApp({ staticDir, ...apiOptions }: AppOptions) {
   const api = createApi(apiOptions);
   const app = express();
   // Les photos de cours (base64) ont droit à un corps plus gros que le reste.
-  app.use("/api/lire", express.json({ limit: LIRE_MAX_CHARS + 10_000 }));
+  app.use(["/api/lire", "/api/copie"], express.json({ limit: LIRE_MAX_CHARS + 10_000 }));
   app.use(express.json({ limit: "1mb" }));
 
   const send = (res: Response, { status, body }: ApiResponse) => res.status(status).json(body);

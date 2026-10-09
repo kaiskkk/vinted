@@ -17,8 +17,8 @@ export const DIFFICULTES: { value: Difficulte; label: string }[] = [
 ];
 
 /** Types de documents que Claude sait générer à partir d'un cours. */
-export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise";
-export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume", "frise"];
+export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise" | "exercices" | "jeu";
+export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume", "frise", "exercices", "jeu"];
 
 /** Longueur maximale du cours envoyé à Claude (environ 15 000 mots). */
 export const SOURCE_MAX = 60_000;
@@ -90,7 +90,51 @@ export interface FriseIA {
   evenements: EvenementIA[];
 }
 
-export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA | FriseIA;
+// ---------- Exercices ----------
+
+export interface ExerciceIA {
+  titre: string;
+  enonce: string;
+  /** Indices de plus en plus précis, dévoilés un par un. */
+  indices: string[];
+  /** Correction étape par étape. */
+  etapes: string[];
+  /** Résultat final, court. */
+  reponse: string;
+}
+export interface ExercicesIA {
+  titre: string;
+  exercices: ExerciceIA[];
+}
+
+// ---------- Jeux de révision ----------
+
+export interface JeuIA {
+  titre: string;
+  /** Jeu des paires : un terme et sa définition (ou une date et son événement). */
+  paires: { terme: string; definition: string }[];
+  /** Textes à trous : les mots à retrouver sont entre crochets, « Le [magma] remonte… ». */
+  trous: { texte: string }[];
+  /** Mots croisés : un mot (lettres seulement) et son indice. */
+  motsCroises: { mot: string; indice: string }[];
+}
+
+export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA | FriseIA | ExercicesIA | JeuIA;
+
+// ---------- Analyse d'une copie corrigée ----------
+
+export interface CopieIA {
+  titre: string;
+  matiere: string;
+  /** Note relevée sur la copie (« 12/20 »), ou "". */
+  note: string;
+  bilan: string;
+  pointsForts: string[];
+  erreurs: { extrait: string; explication: string; correction: string; conseil: string }[];
+  notions: string[];
+  /** Exercices d'entraînement ciblés sur les erreurs. */
+  exercices: ExerciceIA[];
+}
 
 // ---------- Aide à la rédaction ----------
 
@@ -361,6 +405,93 @@ export function sanitizeRelecture(raw: unknown): RelectureIA {
   };
 }
 
+export function sanitizeExercice(raw: unknown): ExerciceIA | null {
+  const o = obj(raw);
+  const enonce = cleanText(o.enonce, 3000);
+  const etapes = strings(o.etapes, 12, 1500);
+  if (!enonce || !etapes.length) return null;
+  return {
+    titre: cleanText(o.titre, 140),
+    enonce,
+    indices: strings(o.indices, 4, 600),
+    etapes,
+    reponse: cleanText(o.reponse, 600),
+  };
+}
+
+export function sanitizeExercices(raw: unknown, max = 20): ExercicesIA {
+  const r = obj(raw);
+  const exercices = list(r.exercices)
+    .map(sanitizeExercice)
+    .filter((e): e is ExerciceIA => e !== null)
+    .slice(0, max);
+  return { titre: cleanText(r.titre, 140) || "Exercices", exercices };
+}
+
+/** Mot de mots croisés : majuscules sans accents, lettres seulement (« Photosynthèse » → « PHOTOSYNTHESE »). */
+export const crosswordWord = (s: string) =>
+  s
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toUpperCase()
+    .replace(/[^A-Z]/g, "");
+
+export function sanitizeJeu(raw: unknown): JeuIA {
+  const r = obj(raw);
+  const seenTerm = new Set<string>();
+  const paires = list(r.paires)
+    .map((p) => {
+      const o = obj(p);
+      return { terme: cleanText(o.terme, 80), definition: cleanText(o.definition, 220) };
+    })
+    .filter((p) => p.terme && p.definition && !seenTerm.has(fold(p.terme)) && (seenTerm.add(fold(p.terme)), true))
+    .slice(0, 20);
+  const trous = list(r.trous)
+    .map((t) => ({ texte: cleanText(typeof t === "string" ? t : obj(t).texte, 400) }))
+    // Au moins un mot à retrouver, entre crochets, pas trop long.
+    .filter((t) => /\[[^\]\n]{1,40}\]/.test(t.texte))
+    .slice(0, 15);
+  const seenWord = new Set<string>();
+  const motsCroises = list(r.motsCroises)
+    .map((m) => {
+      const o = obj(m);
+      return { mot: cleanText(o.mot, 30), indice: cleanText(o.indice, 200) };
+    })
+    .filter((m) => {
+      const w = crosswordWord(m.mot);
+      if (w.length < 3 || w.length > 14 || !m.indice || seenWord.has(w)) return false;
+      seenWord.add(w);
+      return true;
+    })
+    .slice(0, 15);
+  return { titre: cleanText(r.titre, 140) || "Jeux de révision", paires, trous, motsCroises };
+}
+
+export function sanitizeCopie(raw: unknown): CopieIA {
+  const r = obj(raw);
+  return {
+    titre: cleanText(r.titre, 140) || "Ma copie",
+    matiere: cleanText(r.matiere, 80),
+    note: cleanText(r.note, 20),
+    bilan: cleanText(r.bilan, 1500),
+    pointsForts: strings(r.pointsForts, 6, 400),
+    erreurs: list(r.erreurs)
+      .map((e) => {
+        const o = obj(e);
+        return {
+          extrait: cleanText(o.extrait, 300),
+          explication: cleanText(o.explication, 800),
+          correction: cleanText(o.correction, 800),
+          conseil: cleanText(o.conseil, 500),
+        };
+      })
+      .filter((e) => e.explication || e.correction)
+      .slice(0, 20),
+    notions: strings(r.notions, 8, 200),
+    exercices: sanitizeExercices({ exercices: r.exercices }, 6).exercices,
+  };
+}
+
 /** Nettoie la réponse de Claude selon le type demandé. */
 export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
   switch (type) {
@@ -376,6 +507,10 @@ export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
       return sanitizeResume(raw);
     case "frise":
       return sanitizeFrise(raw);
+    case "exercices":
+      return sanitizeExercices(raw);
+    case "jeu":
+      return sanitizeJeu(raw);
   }
 }
 
@@ -394,5 +529,11 @@ export function isUsable(type: TypeEtude, doc: EtudeIA): boolean {
       return (doc as ResumeIA).sections.length > 0 || Boolean((doc as ResumeIA).introduction);
     case "frise":
       return (doc as FriseIA).evenements.length > 0;
+    case "exercices":
+      return (doc as ExercicesIA).exercices.length > 0;
+    case "jeu": {
+      const j = doc as JeuIA;
+      return j.paires.length >= 3 || j.trous.length > 0 || j.motsCroises.length >= 3;
+    }
   }
 }
