@@ -152,9 +152,9 @@ export default function SeriePage() {
         </section>
 
         <p className="mt-6 text-sm text-slate-500 dark:text-slate-400">
-          Une journée compte dès que tu fais un quiz, une séance de flashcards, un exercice, un jeu, une séance de ton planning, une génération avec
-          l'IA, une question sur un cours, une aide à la rédaction, l'analyse d'une copie, un devoir de ton agenda, ou que tu modifies une fiche. Pas
-          besoin de tout faire : un seul geste suffit !
+          Une journée compte dès que tu fais un quiz, une séance de flashcards, un exercice, une réponse à l'oral, un jeu, une séance de ton planning
+          ou du minuteur, une génération avec l'IA, une question sur un cours, une aide à la rédaction, l'analyse d'une copie, un devoir de ton
+          agenda, ou que tu modifies une fiche. Pas besoin de tout faire : un seul geste suffit !
         </p>
       </Page>
     </div>

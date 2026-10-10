@@ -12,6 +12,8 @@ import {
   XIcon,
 } from "../components/Icons";
 import { AccountButton } from "../components/AccountButton";
+import { AProposButton } from "../components/APropos";
+import { MinuteurButton } from "../components/Minuteur";
 import { InstallApp } from "../components/InstallApp";
 import { KIND_LOOK, KindBadge, MODE_INFO } from "../components/looks";
 import { btn } from "../components/Modal";
@@ -28,7 +30,23 @@ import { downloadBackup, importAll, listLibrary, type ItemKind, type LibraryItem
 import { today } from "../lib/planning";
 import { dayLabel, genreOf, upcomingAgenda } from "../lib/agenda";
 import { classesSupported, countNouveautes, listMesClasses } from "../lib/classes";
+import { lastOpened } from "../lib/dernier";
+import { buildIndex, findSnippet, itemKey } from "../lib/recherche";
 import { listMaps } from "../lib/storage";
+
+/** Le mot cherché, surligné dans l'extrait. */
+function Highlight({ text, query }: { text: string; query: string }) {
+  const q = fold(query.trim());
+  const at = fold(text).indexOf(q);
+  if (at < 0 || !q) return <>{text}</>;
+  return (
+    <>
+      {text.slice(0, at)}
+      <mark className="rounded-sm bg-yellow-200/90 px-0.5 text-inherit dark:bg-yellow-300/25">{text.slice(at, at + q.length)}</mark>
+      {text.slice(at + q.length)}
+    </>
+  );
+}
 
 type Filter =
   | "tout"
@@ -122,6 +140,12 @@ export default function Home() {
   const [todo] = useState<TodayItem[]>(todayItems);
   const [devoirs] = useState(() => upcomingAgenda());
   const [classes] = useState(listMesClasses);
+  // Dernier élément ouvert ces deux dernières semaines, s'il existe encore.
+  const [reprendre] = useState(() => {
+    const d = lastOpened();
+    const item = d && items.find((i) => i.kind === d.kind && i.id === d.id);
+    return d && item && Date.now() - d.at < 14 * 86_400_000 ? { item, at: d.at } : null;
+  });
   const [nouveautes, setNouveautes] = useState<{ code: string; nom: string; n: number }[]>([]);
   // Documents ajoutés dans mes classes depuis ma dernière visite.
   useEffect(() => {
@@ -144,10 +168,21 @@ export default function Home() {
   const counts = useMemo(() => modeCounts(items), [items]);
   const classeurNames = useMemo(() => new Map(listClasseurs().map((c) => [c.id, c.nom])), [items]);
 
-  const shown = useMemo(() => {
+  // À partir de 3 lettres, la recherche fouille aussi le contenu (index construit une seule fois).
+  const deep = fold(query.trim()).length >= 3;
+  const index = useMemo(() => (deep ? buildIndex(items) : null), [items, deep]);
+  const { shown, snippets } = useMemo(() => {
     const q = fold(query.trim());
-    return items.filter((i) => matches(filter, i.kind) && (!q || fold(i.titre).includes(q)));
-  }, [items, query, filter]);
+    const snippets = new Map<string, string>();
+    const shown = items.filter((i) => {
+      if (!matches(filter, i.kind)) return false;
+      if (!q || fold(i.titre).includes(q)) return true;
+      const found = index ? findSnippet(index.get(itemKey(i)), query) : null;
+      if (found) snippets.set(itemKey(i), found);
+      return Boolean(found);
+    });
+    return { shown, snippets };
+  }, [items, query, filter, index]);
   const visible = showAll || query || filter !== "tout" ? shown : shown.slice(0, 8);
 
   const restoreBackup = async (file: File) => {
@@ -202,12 +237,13 @@ export default function Home() {
         <span className="hidden text-lg font-bold tracking-tight sm:inline">ecoleduc</span>
         <div className="ml-auto flex min-w-0 items-center gap-1">
           <SeriePill />
-          <NiveauPicker />
+          <NiveauPicker compact />
           {/* Très petits écrans : le thème suit déjà celui du téléphone, le bouton laisse la place au compte. */}
           <span className="contents max-[359px]:hidden">
             <ThemeToggle theme={theme} onToggle={toggle} />
           </span>
           <AccountButton />
+          <AProposButton />
         </div>
       </header>
 
@@ -219,7 +255,30 @@ export default function Home() {
           <p className="mx-auto mt-2 max-w-md animate-slide-up text-balance text-slate-600 sm:text-lg dark:text-slate-300">
             Qu'est-ce qu'on révise aujourd'hui ?
           </p>
+          <div className="mt-4 flex animate-slide-up justify-center">
+            <MinuteurButton />
+          </div>
         </section>
+
+        {reprendre && (
+          <section className="mt-8" aria-label="Reprendre">
+            <button
+              type="button"
+              onClick={() => openItem(reprendre.item.kind, reprendre.item.id)}
+              className={`${card} flex min-h-16 w-full items-center gap-3 px-3 py-2.5 text-left transition hover:-translate-y-0.5 hover:shadow-md sm:px-4`}
+            >
+              <KindBadge kind={reprendre.item.kind} />
+              <span className="min-w-0 flex-1">
+                <span className="block text-xs font-semibold tracking-wider text-indigo-600 uppercase dark:text-indigo-300">Reprendre</span>
+                <span className="block truncate font-medium">{reprendre.item.titre}</span>
+                <span className="block truncate text-xs text-slate-500 dark:text-slate-400">
+                  {KIND_LOOK[reprendre.item.kind].label} · ouvert {formatDate(reprendre.at)}
+                </span>
+              </span>
+              <ChevronRightIcon size={18} className="shrink-0 text-slate-400" />
+            </button>
+          </section>
+        )}
 
         {todo.length + devoirs.length + nouveautes.length > 0 && (
           <section className="mt-8" aria-labelledby="aujourdhui">
@@ -346,7 +405,7 @@ export default function Home() {
                     type="search"
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
-                    placeholder="Rechercher…"
+                    placeholder="Rechercher, même dans le contenu…"
                     enterKeyHint="search"
                     className="h-11 w-full rounded-xl border border-slate-200 bg-white/80 pr-3 pl-9 text-base outline-none transition focus:border-indigo-400 sm:text-sm dark:border-slate-700 dark:bg-slate-900/70"
                   />
@@ -436,6 +495,11 @@ export default function Home() {
                             {KIND_LOOK[item.kind].label} · {formatDate(item.updatedAt)}
                             {classeur ? ` · ${classeur}` : ""}
                           </span>
+                          {snippets.has(itemKey(item)) && (
+                            <span className="mt-1 line-clamp-2 block text-xs text-slate-600 dark:text-slate-300">
+                              <Highlight text={snippets.get(itemKey(item))!} query={query} />
+                            </span>
+                          )}
                         </span>
                         <ChevronRightIcon size={18} className="shrink-0 text-slate-400" />
                       </button>

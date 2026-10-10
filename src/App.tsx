@@ -1,11 +1,15 @@
-import { lazy, Suspense, type ComponentType } from "react";
+import { lazy, Suspense, useEffect, type ComponentType } from "react";
 import { AccessCodePrompt } from "./components/AccessCodePrompt";
+import { AProposPanel, ArriveeMessage } from "./components/APropos";
+import { MinuteurPanel, MinuteurPill, MinuteurWatcher } from "./components/Minuteur";
 import { Spinner } from "./components/Icons";
 import { AgendaWatcher } from "./components/AgendaWatcher";
 import { ReadAloudBar } from "./components/ReadAloud";
 import { SerieWatcher } from "./components/Serie";
 import { ToastProvider } from "./components/Toasts";
 import { useHashRoute } from "./hooks/useHashRoute";
+import { rememberOpened } from "./lib/dernier";
+import { loadDoc } from "./lib/docs";
 import Home from "./pages/Home";
 import MindMaps from "./pages/MindMaps";
 
@@ -57,6 +61,19 @@ function Loading({ label }: { label: string }) {
 
 export default function App() {
   const route = useHashRoute();
+  // Pour « Reprendre » sur l'accueil : la dernière carte, le dernier document ou classeur ouvert.
+  const openedKey =
+    route.page === "editor" ? `carte:${route.mapId}` : route.page === "classeur" || route.page === "doc" ? `${route.page}:${route.id}` : "";
+  useEffect(() => {
+    if (!openedKey) return;
+    const [page, id] = [openedKey.slice(0, openedKey.indexOf(":")), openedKey.slice(openedKey.indexOf(":") + 1)];
+    if (page === "carte") rememberOpened("carte", id);
+    else if (page === "classeur") rememberOpened("classeur", id);
+    else {
+      const doc = loadDoc(id);
+      if (doc) rememberOpened(doc.type, id);
+    }
+  }, [openedKey]);
   let page;
   switch (route.page) {
     case "editor":
@@ -100,6 +117,11 @@ export default function App() {
       <SerieWatcher />
       <AgendaWatcher />
       <ReadAloudBar />
+      <ArriveeMessage route={route} />
+      <AProposPanel />
+      <MinuteurWatcher />
+      <MinuteurPill route={route} />
+      <MinuteurPanel />
     </ToastProvider>
   );
 }

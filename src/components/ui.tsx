@@ -137,14 +137,17 @@ export function useNiveau(): [Niveau, (n: Niveau) => void] {
 }
 
 /** Petit menu « Niveau : Lycée » : Claude adapte son vocabulaire. */
-export function NiveauPicker({ className = "" }: { className?: string }) {
+export function NiveauPicker({ className = "", compact = false }: { className?: string; compact?: boolean }) {
   const [niveau, setNiveauState] = useNiveau();
   return (
     <label
-      className={`relative inline-flex min-h-10 items-center gap-2 rounded-xl border border-slate-200 bg-white/80 pr-8 pl-3 text-sm text-slate-700 transition focus-within:border-indigo-400 tap:min-h-11 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 ${className}`}
+      className={`relative inline-flex min-h-10 min-w-0 items-center gap-2 rounded-xl border border-slate-200 bg-white/80 pr-8 pl-3 text-sm text-slate-700 transition focus-within:border-indigo-400 tap:min-h-11 dark:border-slate-700 dark:bg-slate-900/70 dark:text-slate-200 ${
+        compact ? "max-[399px]:pr-7 max-[399px]:pl-2.5" : ""
+      } ${className}`}
       title="L'IA adapte son vocabulaire à ton niveau"
     >
-      <GraduationIcon size={17} className="shrink-0 text-indigo-500" />
+      {/* Petit écran (en-tête de l'accueil) : sans l'icône, pour laisser la place aux autres boutons. */}
+      <GraduationIcon size={17} className={`shrink-0 text-indigo-500 ${compact ? "max-[399px]:hidden" : ""}`} />
       <span className="sr-only">Mon niveau</span>
       <select
         value={niveau}
@@ -158,7 +161,7 @@ export function NiveauPicker({ className = "" }: { className?: string }) {
           </option>
         ))}
       </select>
-      <span className="font-medium">{NIVEAUX.find((n) => n.value === niveau)?.court}</span>
+      <span className="truncate font-medium">{NIVEAUX.find((n) => n.value === niveau)?.court}</span>
       <ChevronDownIcon size={15} className="pointer-events-none absolute right-2.5 text-slate-400" />
     </label>
   );

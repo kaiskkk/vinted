@@ -16,7 +16,8 @@ export type Activite =
   | "jeu"
   | "copie"
   | "devoir"
-  | "oral";
+  | "oral"
+  | "minuteur";
 
 export interface SerieData {
   /** Jour local AAAA-MM-JJ → nombre d'activités de chaque type. */

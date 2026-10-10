@@ -19,6 +19,8 @@
   --animate-fade-in: fade-in 0.2s ease-out;
   --animate-slide-up: slide-up 0.25s ease-out;
   --animate-sheet-up: sheet-up 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-drawer-in: drawer-in 0.28s cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-slide-down: slide-down 0.3s ease-out;
 }
 
 @keyframes pop {
@@ -39,6 +41,14 @@
 @keyframes sheet-up {
   from { transform: translateY(100%); }
   to { transform: translateY(0); }
+}
+@keyframes drawer-in {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes slide-down {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
 }
 @keyframes shake {
   0%, 100% { transform: translateX(0); }
