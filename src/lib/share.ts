@@ -58,6 +58,8 @@ export function cleanForShare(doc: StudyDoc): StudyDoc {
       };
     case "jeu":
       return { ...d, records: {} };
+    case "oral":
+      return { ...d, questions: d.questions.map(({ dernier: _d, ...q }) => (void _d, q)), seances: [] };
     case "redaction":
       // Le sujet et le plan seulement : le texte de l'élève reste à lui.
       return { ...d, brouillon: "", relectures: [] };

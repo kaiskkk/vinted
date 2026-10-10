@@ -8,6 +8,7 @@ import {
   isTypeDevoir,
   sanitizeExercice,
   sanitizeFrise,
+  sanitizeOral,
   sanitizePlan,
   sanitizeQuestion,
   sanitizeRelecture,
@@ -21,17 +22,33 @@ import {
   type FriseIA,
   type JeuIA,
   type Niveau,
+  type OralIA,
+  type OralQuestionIA,
   type PlanIA,
   type QuizIA,
   type ResumeIA,
   type RelectureIA,
   type RevisionIA,
   type TypeDevoir,
+  type Verdict,
+  VERDICTS,
 } from "../../shared/study";
 import { normalizeHex } from "../../shared/aiMap";
 import { newId } from "./mapModel";
 
-export type DocType = "fiche" | "revision" | "planning" | "quiz" | "flashcards" | "resume" | "frise" | "redaction" | "exercices" | "jeu" | "copie";
+export type DocType =
+  | "fiche"
+  | "revision"
+  | "planning"
+  | "quiz"
+  | "flashcards"
+  | "resume"
+  | "frise"
+  | "redaction"
+  | "exercices"
+  | "jeu"
+  | "copie"
+  | "oral";
 export const DOC_TYPES: DocType[] = [
   "fiche",
   "revision",
@@ -44,6 +61,7 @@ export const DOC_TYPES: DocType[] = [
   "exercices",
   "jeu",
   "copie",
+  "oral",
 ];
 
 interface DocBase {
@@ -226,6 +244,24 @@ export interface CopieDoc extends DocBase {
   exercices: Exercice[];
 }
 
+export interface OralQuestion extends OralQuestionIA {
+  id: string;
+  /** Résultat de la dernière fois où la question a été posée. */
+  dernier?: Verdict;
+}
+export interface OralSeance {
+  date: number;
+  /** Points obtenus : 1 par réponse juste, ½ par réponse en partie juste. */
+  score: number;
+  total: number;
+}
+export interface OralDoc extends DocBase {
+  type: "oral";
+  difficulte: Difficulte;
+  questions: OralQuestion[];
+  seances: OralSeance[];
+}
+
 export type StudyDoc =
   | FicheDoc
   | RevisionDoc
@@ -237,7 +273,8 @@ export type StudyDoc =
   | RedactionDoc
   | ExercicesDoc
   | JeuDoc
-  | CopieDoc;
+  | CopieDoc
+  | OralDoc;
 export type DocOf<T extends DocType> = Extract<StudyDoc, { type: T }>;
 
 export interface DocSummary {
@@ -452,6 +489,27 @@ export function flashcardsFromCopie(copie: CopieDoc): FlashcardsDoc {
         [e.correction, e.conseil].filter(Boolean).join("\n\n"),
       ),
     ),
+  };
+}
+
+export function oralFromIA(ia: OralIA, difficulte: Difficulte, classeurId?: string): OralDoc {
+  return { ...fresh(ia.titre, classeurId), type: "oral", difficulte, questions: ia.questions.map((q) => ({ id: newId(), ...q })), seances: [] };
+}
+
+export function blankOral(titre = "Nouvelle interrogation orale"): OralDoc {
+  return { ...fresh(titre), type: "oral", difficulte: "moyen", questions: [], seances: [] };
+}
+
+/** Interrogation orale à partir d'un paquet de flashcards : le recto est la question, le verso la réponse attendue. */
+export function oralFromFlashcards(deck: FlashcardsDoc): OralDoc {
+  return {
+    ...fresh(`À l'oral — ${deck.titre}`.slice(0, 140), deck.classeurId),
+    type: "oral",
+    difficulte: "moyen",
+    questions: deck.cartes
+      .filter((c) => c.recto.trim() && c.verso.trim())
+      .map((c) => ({ id: newId(), question: c.recto.trim(), reponse: c.verso.trim(), points: [] })),
+    seances: [],
   };
 }
 
@@ -721,6 +779,25 @@ export function normalizeDoc(raw: unknown): StudyDoc | null {
           .filter(Boolean),
         exercices: normalizeExercices(r.exercices),
       };
+    case "oral":
+      return {
+        ...base,
+        type,
+        difficulte: (["facile", "moyen", "difficile"] as const).includes(r.difficulte as Difficulte) ? (r.difficulte as Difficulte) : "moyen",
+        questions: list(r.questions).flatMap((q) => {
+          const o = obj(q);
+          const clean = sanitizeOral({ questions: [o] }, 1).questions[0];
+          if (!clean) return [];
+          return [{ ...clean, id: idOf(o.id), ...(VERDICTS.includes(o.dernier as Verdict) ? { dernier: o.dernier as Verdict } : {}) }];
+        }),
+        seances: list(r.seances)
+          .flatMap((x) => {
+            const o = obj(x);
+            const total = num(o.total, 0);
+            return total > 0 ? [{ date: num(o.date, now), score: Math.max(0, Math.min(total, num(o.score, 0))), total }] : [];
+          })
+          .slice(-30),
+      };
   }
 }
 
@@ -780,8 +857,15 @@ export function docInfo(doc: StudyDoc): string {
       const erreurs = reste ? plural(reste, "erreur") + " à comprendre" : "Tout est compris";
       return doc.note ? `${doc.note} · ${erreurs}` : erreurs;
     }
+    case "oral": {
+      const last = doc.seances.at(-1);
+      return `${plural(doc.questions.length, "question")}${last ? ` · dernière note ${formatScore(last.score)}/${last.total}` : ""}`;
+    }
   }
 }
+
+/** Score avec une virgule pour les demi-points (« 5,5 »). */
+export const formatScore = (n: number) => String(Math.round(n * 2) / 2).replace(".", ",");
 
 const summaryOf = (doc: StudyDoc): DocSummary => ({
   id: doc.id,

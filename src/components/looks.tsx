@@ -11,12 +11,14 @@ import {
   ClipboardCheckIcon,
   FileTextIcon,
   FolderIcon,
+  MessageQuestionIcon,
   NetworkIcon,
   NotebookPenIcon,
   PuzzleIcon,
   QuizIcon,
   TargetIcon,
   TimelineIcon,
+  UsersIcon,
 } from "./Icons";
 
 export interface Look {
@@ -100,6 +102,18 @@ const LOOKS = {
     text: "text-yellow-700 dark:text-yellow-300",
     shadow: "shadow-yellow-500/30",
   },
+  oral: {
+    gradient: "from-pink-500 to-orange-400",
+    soft: "bg-pink-50 text-pink-700 dark:bg-pink-500/15 dark:text-pink-300",
+    text: "text-pink-600 dark:text-pink-300",
+    shadow: "shadow-pink-500/30",
+  },
+  classe: {
+    gradient: "from-green-700 to-teal-600",
+    soft: "bg-green-50 text-green-800 dark:bg-green-500/15 dark:text-green-300",
+    text: "text-green-700 dark:text-green-300",
+    shadow: "shadow-green-600/30",
+  },
   agenda: {
     gradient: "from-cyan-500 to-blue-500",
     soft: "bg-cyan-50 text-cyan-800 dark:bg-cyan-500/15 dark:text-cyan-300",
@@ -161,6 +175,12 @@ export const MODE_INFO: Record<Mode, ModeInfo> = {
     icon: (s = 22) => <CalculatorIcon size={s} />,
     description: "Entraîne-toi avec indices et corrigés pas à pas",
   },
+  oral: {
+    ...LOOKS.oral,
+    label: "Oral",
+    icon: (s = 22) => <MessageQuestionIcon size={s} />,
+    description: "Le site t'interroge, tu réponds au micro",
+  },
   jeux: {
     ...LOOKS.jeux,
     label: "Jeux",
@@ -178,6 +198,12 @@ export const MODE_INFO: Record<Mode, ModeInfo> = {
     label: "Agenda",
     icon: (s = 22) => <CalendarCheckIcon size={s} />,
     description: "Tes devoirs et contrôles, avec rappels",
+  },
+  classe: {
+    ...LOOKS.classe,
+    label: "Ma classe",
+    icon: (s = 22) => <UsersIcon size={s} />,
+    description: "Partage tes documents avec ta classe",
   },
   frise: {
     ...LOOKS.frise,
@@ -207,6 +233,7 @@ export const KIND_LOOK: Record<ItemKind, Look> = {
   exercices: { ...LOOKS.exercices, label: "Exercices", icon: (s = 18) => <CalculatorIcon size={s} /> },
   jeu: { ...LOOKS.jeux, label: "Jeux", icon: (s = 18) => <PuzzleIcon size={s} /> },
   copie: { ...LOOKS.copie, label: "Copie", icon: (s = 18) => <ClipboardCheckIcon size={s} /> },
+  oral: { ...LOOKS.oral, label: "Oral", icon: (s = 18) => <MessageQuestionIcon size={s} /> },
 };
 
 /** Mode où l'on retombe en quittant un document qui n'est pas dans un classeur. */
@@ -224,6 +251,7 @@ export const MODE_OF_KIND: Record<ItemKind, Mode> = {
   exercices: "exercices",
   jeu: "jeux",
   copie: "copie",
+  oral: "oral",
 };
 
 /** Pastille colorée avec l'icône d'un type. */

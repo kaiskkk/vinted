@@ -22,5 +22,55 @@ service cloud.firestore {
         && request.resource.data.proprietaire == request.auth.uid;
       allow delete: if request.auth != null && resource.data.proprietaire == request.auth.uid;
     }
+
+    // Mode classe : on rejoint une classe avec son code (l'identifiant du document).
+    // Seuls les membres voient la classe, ses membres et ses documents ; seul le créateur la règle.
+    match /classes/{code} {
+      function connecte() { return request.auth != null; }
+      function laClasse() { return get(/databases/$(database)/documents/classes/$(code)).data; }
+      function membre() { return exists(/databases/$(database)/documents/classes/$(code)/membres/$(request.auth.uid)); }
+      function createur() { return laClasse().proprietaire == request.auth.uid; }
+      function nomValide(n, max) { return n is string && n.size() > 0 && n.size() <= max; }
+
+      allow get: if connecte() && (membre() || resource.data.proprietaire == request.auth.uid);
+      allow create: if connecte()
+        && request.resource.data.proprietaire == request.auth.uid
+        && nomValide(request.resource.data.nom, 80)
+        && request.resource.data.ouverte is bool
+        && request.resource.data.tousPartagent is bool;
+      allow update: if connecte()
+        && resource.data.proprietaire == request.auth.uid
+        && request.resource.data.proprietaire == request.auth.uid
+        && nomValide(request.resource.data.nom, 80)
+        && request.resource.data.ouverte is bool
+        && request.resource.data.tousPartagent is bool;
+      allow delete: if connecte() && resource.data.proprietaire == request.auth.uid;
+
+      match /membres/{uid} {
+        allow read: if connecte() && membre();
+        // On ne s'inscrit que soi-même, et seulement si la classe accepte de nouveaux membres.
+        allow create: if connecte() && request.auth.uid == uid
+          && (laClasse().ouverte == true || createur())
+          && nomValide(request.resource.data.nom, 40)
+          && request.resource.data.keys().hasOnly(["nom", "createdAt"]);
+        allow update: if connecte() && request.auth.uid == uid
+          && nomValide(request.resource.data.nom, 40)
+          && request.resource.data.keys().hasOnly(["nom", "createdAt"]);
+        // On peut quitter la classe ; le créateur peut retirer un membre.
+        allow delete: if connecte() && (request.auth.uid == uid || createur());
+      }
+
+      match /documents/{docId} {
+        allow read: if connecte() && membre();
+        allow create: if connecte() && membre()
+          && request.resource.data.auteur == request.auth.uid
+          && (createur() || laClasse().tousPartagent == true)
+          && request.resource.data.kind is string
+          && request.resource.data.titre is string
+          && request.resource.data.data is string
+          && request.resource.data.data.size() < 1000000;
+        allow delete: if connecte() && (resource.data.auteur == request.auth.uid || createur());
+      }
+    }
   }
 }

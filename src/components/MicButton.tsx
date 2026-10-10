@@ -17,6 +17,8 @@ export function MicButton({
   className = "",
   label = "Dicter au micro",
   max,
+  big = false,
+  onListening,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -24,6 +26,10 @@ export function MicButton({
   label?: string;
   /** Longueur maximale du champ. */
   max?: number;
+  /** Grand bouton rond (interrogation orale). */
+  big?: boolean;
+  /** Prévient quand la dictée commence ou s'arrête. */
+  onListening?: (listening: boolean) => void;
 }) {
   const toast = useToast();
   const [listening, setListening] = useState(false);
@@ -33,6 +39,9 @@ export function MicButton({
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
   const [supported] = useState(() => speechRecognitionCtor() !== null);
+  const onListeningRef = useRef(onListening);
+  onListeningRef.current = onListening;
+  useEffect(() => onListeningRef.current?.(listening), [listening]);
 
   useEffect(
     () => () => {
@@ -85,6 +94,23 @@ export function MicButton({
       toast.error("La dictée n'a pas pu démarrer. Réessaie dans un instant.");
     }
   };
+
+  if (big) {
+    return (
+      <button
+        type="button"
+        onClick={listening ? stop : start}
+        aria-pressed={listening}
+        aria-label={listening ? "Arrêter le micro" : label}
+        className={`relative inline-flex h-20 w-20 shrink-0 items-center justify-center rounded-full text-white shadow-xl transition active:scale-95 ${
+          listening ? "bg-red-500 shadow-red-500/40" : "bg-linear-to-br from-pink-500 to-orange-400 shadow-pink-500/30 hover:brightness-110"
+        } ${className}`}
+      >
+        {listening && <span className="absolute inset-0 animate-ping rounded-full bg-red-500/40" aria-hidden="true" />}
+        <MicIcon size={32} className="relative" />
+      </button>
+    );
+  }
 
   return (
     <button

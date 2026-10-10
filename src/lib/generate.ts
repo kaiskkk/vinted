@@ -8,6 +8,7 @@ import {
   friseFromIA,
   jeuFromIA,
   linkMap,
+  oralFromIA,
   quizFromIA,
   resumeFromIA,
   revisionFromIA,
@@ -65,6 +66,9 @@ export async function generateDoc(
       break;
     case "jeu":
       doc = jeuFromIA(await generateEtude("jeu", src, niveau, options, signal), classeurId);
+      break;
+    case "oral":
+      doc = oralFromIA(await generateEtude("oral", src, niveau, options, signal), options.difficulte ?? "moyen", classeurId);
       break;
   }
   if (signal?.aborted) throw new DOMException("Annulé", "AbortError");

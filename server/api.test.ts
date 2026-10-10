@@ -113,6 +113,10 @@ describe("outils d'étude", () => {
       if (input.type === "fiche") return { titre: "Fiche", sousTitre: "", blocs: [] };
       return { titre: "Cartes", cartes: [{ recto: "Recto", verso: "Verso" }] };
     },
+    oral: async (input) =>
+      input.reponse.includes("magma")
+        ? { verdict: "Juste", retour: "Bravo, c'est exact.", manque: ["à ignorer"] }
+        : { verdict: "partiel", retour: "Tu y es presque : il manque le mot magma.", manque: ["le magma", "le magma", ""] },
     copie: async (input) => ({
       titre: "Contrôle",
       matiere: input.matiere ?? "",
@@ -176,6 +180,23 @@ describe("outils d'étude", () => {
     expect((await api.copie({ images: [{ media: "application/pdf", data: "aGVsbG8=" }] })).status).toBe(400);
     const cinq = Array.from({ length: 5 }, () => ({ media: "image/png", data: "aGVsbG8=" }));
     expect((await api.copie({ images: cinq })).body).toMatchObject({ erreur: "4 pages au maximum à la fois." });
+  });
+
+  it("interrogation orale : réponse corrigée, verdict normalisé", async () => {
+    const q = {
+      question: "Qu'est-ce qu'un volcan ?",
+      attendu: "Une ouverture d'où sort le magma.",
+      points: ["ouverture", "magma"],
+      niveau: "college",
+    };
+    const juste = await api.oral({ ...q, reponse: "c'est un trou d'où sort le magma" });
+    expect(juste.status).toBe(200);
+    expect(juste.body).toEqual({ verdict: "juste", retour: "Bravo, c'est exact.", manque: [] });
+    const partiel = await api.oral({ ...q, reponse: "une montagne" });
+    expect(partiel.body).toEqual({ verdict: "partiel", retour: "Tu y es presque : il manque le mot magma.", manque: ["le magma"] });
+    expect((await api.oral({ ...q, reponse: "   " })).body).toMatchObject({ erreur: "Réponds d'abord à la question, au micro ou au clavier." });
+    expect((await api.oral({ ...q, question: "" })).status).toBe(400);
+    expect((await api.oral({ ...q, reponse: "x".repeat(4001) })).status).toBe(400);
   });
 
   it("aide à la rédaction : plan, relecture, validation", async () => {

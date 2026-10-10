@@ -1,7 +1,8 @@
 import { useState } from "react";
+import { classeErrorMessage, listMesClasses, shareToClasse } from "../lib/classes";
 import type { ItemKind } from "../lib/library";
 import { createShareLink, shareSupported } from "../lib/share";
-import { CheckIcon, LinkIcon, ShareIcon, Spinner } from "./Icons";
+import { CheckIcon, LinkIcon, ShareIcon, Spinner, UsersIcon } from "./Icons";
 import { Modal, btn } from "./Modal";
 import { useToast } from "./Toasts";
 
@@ -26,7 +27,21 @@ export function ShareButton({
   const [busy, setBusy] = useState(false);
   const [link, setLink] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [sent, setSent] = useState<Record<string, "envoi" | "ok">>({});
   if (!shareSupported) return null;
+  const classes = link ? listMesClasses().filter((c) => c.peutPartager) : [];
+
+  const sendToClasse = async (code: string, nom: string) => {
+    setSent((s) => ({ ...s, [code]: "envoi" }));
+    try {
+      await shareToClasse(code, kind, id);
+      setSent((s) => ({ ...s, [code]: "ok" }));
+      toast.success(`Envoyé à « ${nom} » : chaque membre peut l'ouvrir.`);
+    } catch (err) {
+      setSent(({ [code]: _omit, ...rest }) => (void _omit, rest));
+      toast.error(classeErrorMessage(err, "partager"));
+    }
+  };
 
   const create = async () => {
     if (!navigator.onLine) return toast.error("Le partage a besoin d'internet : reconnecte-toi puis réessaie.");
@@ -111,6 +126,32 @@ export function ShareButton({
             aria-label="Lien de partage"
             className="mt-3 h-11 w-full rounded-xl border border-slate-200 bg-slate-50 px-3 text-sm dark:border-slate-700 dark:bg-slate-800"
           />
+          {classes.length > 0 && (
+            <div className="mt-5">
+              <p className="text-sm font-semibold">Ou envoie-le directement à ta classe</p>
+              <ul className="mt-2 space-y-2">
+                {classes.map((c) => (
+                  <li key={c.code}>
+                    <button
+                      type="button"
+                      className={`${btn.secondary} w-full justify-start`}
+                      disabled={Boolean(sent[c.code])}
+                      onClick={() => void sendToClasse(c.code, c.nom)}
+                    >
+                      {sent[c.code] === "envoi" ? (
+                        <Spinner className="h-4 w-4" />
+                      ) : sent[c.code] === "ok" ? (
+                        <CheckIcon size={16} />
+                      ) : (
+                        <UsersIcon size={16} />
+                      )}
+                      <span className="min-w-0 truncate">{sent[c.code] === "ok" ? `Envoyé à « ${c.nom} »` : `Envoyer à « ${c.nom} »`}</span>
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </Modal>
       )}
     </>

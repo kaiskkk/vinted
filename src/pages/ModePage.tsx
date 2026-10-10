@@ -1,21 +1,35 @@
 import { useMemo, useState, type ReactNode } from "react";
 import { DIFFICULTES, type Difficulte, type TypeEtude } from "../../shared/study";
 import { DocList } from "../components/DocList";
-import { CalendarIcon, ChevronRightIcon, PencilIcon, SearchIcon, SparklesIcon } from "../components/Icons";
-import { MODE_INFO } from "../components/looks";
+import { CalendarIcon, CardsIcon, ChevronRightIcon, PencilIcon, SearchIcon, SparklesIcon } from "../components/Icons";
+import { KindBadge, MODE_INFO } from "../components/looks";
 import { MicButton } from "../components/MicButton";
 import { btn } from "../components/Modal";
 import { SourcePicker, emptySource, hasSource, type SourceValue } from "../components/SourcePicker";
 import { useToast } from "../components/Toasts";
 import { ClaudeTaskOverlay, EmptyState, NiveauPicker, Page, PageHeader, Segmented, card, input, useClaudeTask, useNiveau } from "../components/ui";
 import { goHome, openDoc, type Mode } from "../hooks/useHashRoute";
-import { blankDeck, blankFiche, blankFrise, listClasseurs, loadClasseur, newPlanning, saveDoc, touchClasseur, type DocType } from "../lib/docs";
+import {
+  blankDeck,
+  blankFiche,
+  blankFrise,
+  blankOral,
+  listClasseurs,
+  listDocs,
+  loadClasseur,
+  loadDoc,
+  newPlanning,
+  oralFromFlashcards,
+  saveDoc,
+  touchClasseur,
+  type DocType,
+} from "../lib/docs";
 import { fold } from "../lib/format";
 import { generateDoc } from "../lib/generate";
 import { listLibrary } from "../lib/library";
 import { addDays, buildPlanning, parseChapitres, today } from "../lib/planning";
 
-type StudyMode = Exclude<Mode, "general" | "cartes" | "redaction" | "copie" | "agenda">;
+type StudyMode = Exclude<Mode, "general" | "cartes" | "redaction" | "copie" | "agenda" | "classe">;
 
 interface ModeConfig {
   kinds: DocType[];
@@ -79,6 +93,18 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
     difficulte: true,
     empty: "Entraîne-toi sur ton cours : demande un indice quand tu bloques, puis découvre la correction étape par étape.",
   },
+  oral: {
+    kinds: ["oral"],
+    type: "oral",
+    loading: "L'IA prépare tes questions…",
+    createLabel: "Créer une interrogation orale",
+    createHint: "Des questions ouvertes lues à voix haute ; tu réponds au micro, l'IA te corrige.",
+    nombres: [5, 8, 12],
+    defaultNombre: 8,
+    difficulte: true,
+    empty:
+      "Entraîne-toi comme à l'oral : le site te pose les questions à voix haute, tu réponds au micro (ou au clavier), puis l'IA te dit ce qui est juste et ce qui manque.",
+  },
   jeux: {
     kinds: ["jeu"],
     type: "jeu",
@@ -97,7 +123,7 @@ const CONFIG: Record<StudyMode, ModeConfig> = {
   },
 };
 
-type View = "list" | "claude" | "planning";
+type View = "list" | "claude" | "planning" | "paquets";
 
 export default function ModePage({ mode }: { mode: StudyMode }) {
   const info = MODE_INFO[mode];
@@ -115,7 +141,7 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
 
   const createBlank = () => {
     try {
-      const doc = mode === "fiches" ? blankFiche() : mode === "frise" ? blankFrise() : blankDeck();
+      const doc = mode === "fiches" ? blankFiche() : mode === "frise" ? blankFrise() : mode === "oral" ? blankOral() : blankDeck();
       saveDoc(doc);
       openDoc(doc.id);
     } catch (err) {
@@ -125,6 +151,7 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
 
   if (view === "claude") return <ClaudeForm mode={mode} onCancel={() => setView("list")} />;
   if (view === "planning") return <PlanningForm onCancel={() => setView("list")} />;
+  if (view === "paquets") return <DeckPicker onCancel={() => setView("list")} />;
 
   const actions: { label: string; hint: string; icon: ReactNode; onClick: () => void; primary?: boolean }[] = [
     { label: config.createLabel, hint: config.createHint, icon: <SparklesIcon size={22} />, onClick: () => setView("claude"), primary: true },
@@ -137,15 +164,25 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
       onClick: () => setView("planning"),
     });
   }
-  if (mode === "fiches" || mode === "flashcards" || mode === "frise") {
+  if (mode === "oral") {
     actions.push({
-      label: mode === "fiches" ? "Fiche vierge" : mode === "frise" ? "Frise vierge" : "Paquet vide",
+      label: "À partir de mes flashcards",
+      hint: "Le recto devient la question, le verso la réponse attendue.",
+      icon: <CardsIcon size={22} />,
+      onClick: () => setView("paquets"),
+    });
+  }
+  if (mode === "fiches" || mode === "flashcards" || mode === "frise" || mode === "oral") {
+    actions.push({
+      label: mode === "fiches" ? "Fiche vierge" : mode === "frise" ? "Frise vierge" : mode === "oral" ? "Mes propres questions" : "Paquet vide",
       hint:
         mode === "fiches"
           ? "Écris ta fiche toi-même, bloc par bloc."
           : mode === "frise"
             ? "Ajoute toi-même les dates et les périodes."
-            : "Écris tes propres cartes recto / verso.",
+            : mode === "oral"
+              ? "Écris les questions et les réponses attendues toi-même."
+              : "Écris tes propres cartes recto / verso.",
       icon: <PencilIcon size={22} />,
       onClick: createBlank,
     });
@@ -224,6 +261,57 @@ export default function ModePage({ mode }: { mode: StudyMode }) {
             <DocList items={shown} onChange={refresh} showType={mode === "revision"} />
           )}
         </section>
+      </Page>
+    </div>
+  );
+}
+
+// ---------- Interrogation orale à partir d'un paquet de flashcards ----------
+
+function DeckPicker({ onCancel }: { onCancel: () => void }) {
+  const toast = useToast();
+  const decks = useMemo(() => listDocs().filter((d) => d.type === "flashcards"), []);
+  const pick = (id: string) => {
+    const deck = loadDoc(id);
+    if (deck?.type !== "flashcards") return toast.error("Ce paquet est introuvable.");
+    const oral = oralFromFlashcards(deck);
+    if (!oral.questions.length) return toast.error("Ce paquet n'a pas encore de carte avec une question et une réponse.");
+    try {
+      saveDoc(oral);
+      touchClasseur(oral.classeurId);
+      openDoc(oral.id);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Création impossible.");
+    }
+  };
+  return (
+    <div className="min-h-dvh">
+      <PageHeader title="Choisis un paquet" onBack={onCancel} backLabel="Annuler" width="max-w-3xl" />
+      <Page width="max-w-3xl">
+        {decks.length === 0 ? (
+          <EmptyState icon={<CardsIcon size={24} />} title="Aucun paquet de flashcards">
+            Crée d'abord des flashcards (mode Flashcards ou un classeur), puis reviens ici pour t'interroger à l'oral.
+          </EmptyState>
+        ) : (
+          <ul className={`${card} divide-y divide-slate-100 overflow-hidden dark:divide-slate-800`}>
+            {decks.map((d) => (
+              <li key={d.id}>
+                <button
+                  type="button"
+                  onClick={() => pick(d.id)}
+                  className="flex min-h-16 w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-slate-50 active:bg-slate-100 dark:hover:bg-slate-800/60"
+                >
+                  <KindBadge kind="flashcards" />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate font-medium">{d.titre}</span>
+                    <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{d.info}</span>
+                  </span>
+                  <ChevronRightIcon size={18} className="shrink-0 text-slate-400" />
+                </button>
+              </li>
+            ))}
+          </ul>
+        )}
       </Page>
     </div>
   );
@@ -316,7 +404,7 @@ function ClaudeForm({ mode, onCancel }: { mode: StudyMode; onCancel: () => void 
           {config.nombres && (
             <section>
               <h2 className="mb-2 text-sm font-semibold">
-                {mode === "quiz" ? "Nombre de questions" : mode === "exercices" ? "Nombre d'exercices" : "Nombre de cartes"}
+                {mode === "quiz" || mode === "oral" ? "Nombre de questions" : mode === "exercices" ? "Nombre d'exercices" : "Nombre de cartes"}
               </h2>
               <Segmented label="Nombre" value={nombre} onChange={setNombre} options={config.nombres.map((n) => ({ value: n, label: String(n) }))} />
             </section>

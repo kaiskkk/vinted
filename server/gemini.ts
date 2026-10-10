@@ -6,6 +6,7 @@ import type { AiMap } from "../shared/aiMap";
 import { CarteSchema, SYSTEM_PROMPT, UserFacingError, buildUserMessage, type GeneratorOptions, type MindMapGenerator } from "./claude";
 import {
   CopieSchema,
+  CorrectionOraleSchema,
   LIRE_PROMPT,
   LIRE_SYSTEM,
   MAX_TOKENS,
@@ -17,6 +18,7 @@ import {
   copiePrompt,
   etudeInstructions,
   isNoText,
+  oralPrompt,
   redactionPrompt,
   simplifierPrompt,
   sourceBlock,
@@ -410,6 +412,7 @@ export function createGeminiProvider(
   const planSchema = toGeminiSchema(PlanSchema);
   const relectureSchema = toGeminiSchema(RelectureSchema);
   const copieSchema = toGeminiSchema(CopieSchema);
+  const oralSchema = toGeminiSchema(CorrectionOraleSchema);
 
   return {
     generator: {
@@ -503,6 +506,14 @@ export function createGeminiProvider(
             maxOutputTokens: 16000,
           },
           "L'analyse de la copie a été coupée. Envoie moins de pages à la fois.",
+        );
+        return parseJson(text);
+      },
+
+      async oral(input) {
+        const text = await call(
+          { system: systemPrompt(input.niveau), contents: [user({ text: oralPrompt(input) })], schema: oralSchema, maxOutputTokens: 4000 },
+          "La correction a été coupée. Donne une réponse plus courte.",
         );
         return parseJson(text);
       },

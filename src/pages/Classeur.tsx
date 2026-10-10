@@ -57,6 +57,7 @@ const ACTIONS: { action: Action; titre: string; detail: string; loading: string 
   { action: "frise", titre: "Frise chronologique", detail: "Les dates clés dans l'ordre", loading: "L'IA trace ta frise…" },
   { action: "exercices", titre: "Exercices", detail: "Avec indices et corrigés pas à pas", loading: "L'IA prépare tes exercices…" },
   { action: "jeu", titre: "Jeux de révision", detail: "Paires, trous et mots croisés", loading: "L'IA prépare tes jeux…" },
+  { action: "oral", titre: "Interrogation orale", detail: "Questions lues, réponses au micro", loading: "L'IA prépare tes questions…" },
 ];
 const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   carte: "carte",
@@ -68,6 +69,7 @@ const KIND_OF: Record<Action, keyof typeof KIND_LOOK> = {
   frise: "frise",
   exercices: "exercices",
   jeu: "jeu",
+  oral: "oral",
 };
 
 const SUGGESTIONS = [
@@ -237,7 +239,9 @@ function ClasseurView({ classeur, setClasseur }: { classeur: Classeur; setClasse
                         type="button"
                         disabled={task.busy}
                         onClick={() =>
-                          a.action === "quiz" || a.action === "flashcards" || a.action === "exercices" ? setOptions(a.action) : generate(a.action)
+                          a.action === "quiz" || a.action === "flashcards" || a.action === "exercices" || a.action === "oral"
+                            ? setOptions(a.action)
+                            : generate(a.action)
                         }
                         className={`${card} group flex h-full min-h-28 w-full flex-col items-start p-3.5 text-left transition hover:-translate-y-0.5 hover:shadow-md active:scale-[0.98] disabled:opacity-60`}
                       >
@@ -328,29 +332,30 @@ function GenerateOptions({
   const [nombre, setNombre] = useState(10);
   const [difficulte, setDifficulte] = useState<Difficulte>("moyen");
   useEffect(() => {
-    if (action) setNombre(action === "quiz" ? 10 : action === "exercices" ? 5 : 20);
+    if (action) setNombre(action === "quiz" ? 10 : action === "exercices" ? 5 : action === "oral" ? 8 : 20);
   }, [action]);
   if (!action) return null;
   const quiz = action === "quiz";
   const exos = action === "exercices";
-  const withLevel = quiz || exos;
+  const oral = action === "oral";
+  const withLevel = quiz || exos || oral;
   return (
     <BottomSheet
       open
       onClose={onClose}
       backdrop
-      title={quiz ? "Ton quiz" : exos ? "Tes exercices" : "Tes flashcards"}
+      title={quiz ? "Ton quiz" : exos ? "Tes exercices" : oral ? "Ton interrogation orale" : "Tes flashcards"}
       label="Options de génération"
       maxHeight="80dvh"
     >
       <div className="space-y-5 px-5 pt-2 pb-4">
         <div>
-          <p className="mb-2 text-sm font-semibold">{quiz ? "Nombre de questions" : exos ? "Nombre d'exercices" : "Nombre de cartes"}</p>
+          <p className="mb-2 text-sm font-semibold">{quiz || oral ? "Nombre de questions" : exos ? "Nombre d'exercices" : "Nombre de cartes"}</p>
           <Segmented
             label="Nombre"
             value={nombre}
             onChange={setNombre}
-            options={(quiz ? [5, 10, 15, 20] : exos ? [3, 5, 8] : [10, 20, 30]).map((n) => ({ value: n, label: String(n) }))}
+            options={(quiz ? [5, 10, 15, 20] : exos ? [3, 5, 8] : oral ? [5, 8, 12] : [10, 20, 30]).map((n) => ({ value: n, label: String(n) }))}
           />
         </div>
         {withLevel && (

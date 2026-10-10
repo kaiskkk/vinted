@@ -7,9 +7,10 @@ import { rebuildDocIndexes } from "./docs";
 import { mergeSerie, parseSerie } from "./serie";
 import { rebuildMapIndex } from "./storage";
 
-const SINGLETONS = ["ed-liens-cartes", "ed-niveau", "ed-serie", "ed-agenda"];
+const SINGLETONS = ["ed-liens-cartes", "ed-niveau", "ed-serie", "ed-agenda", "ed-prenom"];
 const INDEX_KEYS = ["mm-index", "ed-docs", "ed-classeurs"];
-const CONTENT = /^(mm-map|ed-doc|ed-classeur):./;
+// ed-groupe : les classes dont l'élève fait partie (mode classe).
+const CONTENT = /^(mm-map|ed-doc|ed-classeur|ed-groupe):./;
 
 /** Clés propres à cet appareil, jamais envoyées. */
 export const OWNER_KEY = "sync-proprietaire";
@@ -107,7 +108,7 @@ export function mergeValue(key: string, local: string, remote: string): string {
       return local;
     }
   }
-  if (key === "ed-niveau") return local;
+  if (key === "ed-niveau" || key === "ed-prenom") return local;
   if (key === "ed-agenda") return mergeAgenda(remote, local);
   return updatedAtOf(local) > updatedAtOf(remote) ? local : remote;
 }

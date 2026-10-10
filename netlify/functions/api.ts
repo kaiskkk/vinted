@@ -20,5 +20,16 @@ const api = createApi({
 export default createFetchHandler(api);
 
 export const config: Config = {
-  path: ["/api/health", "/api/generate", "/api/expand", "/api/etude", "/api/redaction", "/api/chat", "/api/simplifier", "/api/lire", "/api/copie"],
+  path: [
+    "/api/health",
+    "/api/generate",
+    "/api/expand",
+    "/api/etude",
+    "/api/redaction",
+    "/api/chat",
+    "/api/simplifier",
+    "/api/lire",
+    "/api/copie",
+    "/api/oral",
+  ],
 };

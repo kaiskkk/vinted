@@ -54,6 +54,9 @@ export function docSegments(doc: StudyDoc): string[] {
       out.push(join(doc.note && `Note : ${doc.note}`, doc.bilan));
       doc.erreurs.forEach((e, i) => out.push(join(`Erreur ${i + 1}`, e.explication, `Correction : ${e.correction}`, e.conseil)));
       break;
+    case "oral":
+      doc.questions.forEach((q, i) => out.push(join(`Question ${i + 1}`, q.question, `Réponse : ${q.reponse}`)));
+      break;
   }
   return out.filter((t) => t && t.trim());
 }

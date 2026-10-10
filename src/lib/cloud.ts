@@ -16,15 +16,20 @@ import {
 } from "firebase/auth";
 import {
   Timestamp,
+  addDoc,
   collection,
   connectFirestoreEmulator,
+  deleteDoc,
   doc,
   getDoc,
   getDocs,
   getFirestore,
+  limit,
+  orderBy,
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   writeBatch,
   type Firestore,
@@ -124,6 +129,108 @@ export async function fetchShare(id: string): Promise<SharedDoc | null> {
   return typeof d.kind === "string" && typeof d.data === "string"
     ? { kind: d.kind, titre: typeof d.titre === "string" ? d.titre : "", data: d.data }
     : null;
+}
+
+// ---------- Mode classe ----------
+
+export const currentUid = () => ready().auth.currentUser?.uid ?? null;
+
+function requireUid() {
+  const uid = currentUid();
+  if (!uid) throw new Error("Connecte-toi pour utiliser le mode classe.");
+  return uid;
+}
+
+const millis = (v: unknown) => (v instanceof Timestamp ? v.toMillis() : typeof v === "number" ? v : Date.now());
+const str = (v: unknown, max: number) => (typeof v === "string" ? v.slice(0, max) : "");
+
+/** Crée la classe (classes/{code}), puis inscrit son créateur comme premier membre. */
+export async function createClasseDoc(code: string, data: { nom: string; tousPartagent: boolean }, prenom: string) {
+  const uid = requireUid();
+  const { db } = ready();
+  await setDoc(doc(db, "classes", code), {
+    nom: data.nom,
+    proprietaire: uid,
+    ouverte: true,
+    tousPartagent: data.tousPartagent,
+    createdAt: serverTimestamp(),
+  });
+  await setDoc(doc(db, "classes", code, "membres", uid), { nom: prenom, createdAt: serverTimestamp() });
+}
+
+/** Rejoindre avec le code : l'élève s'inscrit lui-même (refusé si le code est faux ou la classe fermée). */
+export async function joinClasseDoc(code: string, prenom: string) {
+  const uid = requireUid();
+  await setDoc(doc(ready().db, "classes", code, "membres", uid), { nom: prenom, createdAt: serverTimestamp() });
+}
+
+export async function fetchClasseDoc(code: string) {
+  const snap = await getDoc(doc(ready().db, "classes", code));
+  if (!snap.exists()) return null;
+  const d = snap.data();
+  return {
+    code,
+    nom: str(d.nom, 80) || "Ma classe",
+    proprietaire: str(d.proprietaire, 200),
+    ouverte: d.ouverte !== false,
+    tousPartagent: d.tousPartagent === true,
+  };
+}
+
+export async function updateClasseDoc(code: string, patch: Partial<{ nom: string; ouverte: boolean; tousPartagent: boolean }>) {
+  await updateDoc(doc(ready().db, "classes", code), patch);
+}
+
+export async function listClasseMembres(code: string) {
+  const snap = await getDocs(collection(ready().db, "classes", code, "membres"));
+  return snap.docs
+    .map((d) => ({ uid: d.id, nom: str(d.data().nom, 40) || "Sans nom", createdAt: millis(d.data().createdAt) }))
+    .sort((a, b) => a.createdAt - b.createdAt);
+}
+
+export const removeClasseMembre = (code: string, uid: string) => deleteDoc(doc(ready().db, "classes", code, "membres", uid));
+
+function toClasseDocument(d: { id: string; data: () => Record<string, unknown> }) {
+  const x = d.data();
+  return {
+    id: d.id,
+    kind: str(x.kind, 40),
+    titre: str(x.titre, 140),
+    data: typeof x.data === "string" ? x.data : "",
+    auteur: str(x.auteur, 200),
+    auteurNom: str(x.auteurNom, 40),
+    createdAt: millis(x.createdAt),
+  };
+}
+
+export async function latestClasseDocuments(code: string, n = 100) {
+  const snap = await getDocs(query(collection(ready().db, "classes", code, "documents"), orderBy("createdAt", "desc"), limit(n)));
+  return snap.docs.map(toClasseDocument);
+}
+
+export async function addClasseDocument(code: string, shared: SharedDoc, auteurNom: string) {
+  const uid = requireUid();
+  await addDoc(collection(ready().db, "classes", code, "documents"), { ...shared, auteur: uid, auteurNom, createdAt: serverTimestamp() });
+}
+
+export const deleteClasseDocument = (code: string, id: string) => deleteDoc(doc(ready().db, "classes", code, "documents", id));
+
+/** Supprime la classe avec ses documents et ses membres (réservé à son créateur). */
+export async function deleteClasseDeep(code: string) {
+  const { db } = ready();
+  const uid = requireUid();
+  for (const sub of ["documents", "membres"]) {
+    const snap = await getDocs(collection(db, "classes", code, sub));
+    // Le créateur s'efface en dernier : tant qu'il est membre, il garde l'accès aux documents.
+    const refs = snap.docs.filter((d) => !(sub === "membres" && d.id === uid)).map((d) => d.ref);
+    for (let i = 0; i < refs.length; i += 400) {
+      const batch = writeBatch(db);
+      refs.slice(i, i + 400).forEach((r) => batch.delete(r));
+      await batch.commit();
+    }
+  }
+  await deleteDoc(doc(db, "classes", code, "membres", uid));
+  await deleteDoc(doc(db, "classes", code));
 }
 
 const AUTH_ERRORS: Record<string, string> = {

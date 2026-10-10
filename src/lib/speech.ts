@@ -74,6 +74,14 @@ export interface ReaderState {
   index: number;
   total: number;
   rate: number;
+  /** Barre de lecture affichée (pas pendant une interrogation orale, qui a ses propres boutons). */
+  bar: boolean;
+}
+
+export interface PlayOptions {
+  bar?: boolean;
+  /** Appelé quand la lecture va jusqu'au bout (pas si elle est arrêtée). */
+  onEnd?: () => void;
 }
 
 function readRate(): number {
@@ -89,7 +97,8 @@ function readRate(): number {
 class Reader {
   private segments: string[] = [];
   private token = 0;
-  state: ReaderState = { status: "idle", label: "", index: 0, total: 0, rate: 1 };
+  private onEnd: (() => void) | null = null;
+  state: ReaderState = { status: "idle", label: "", index: 0, total: 0, rate: 1, bar: true };
   private listeners = new Set<(s: ReaderState) => void>();
 
   constructor() {
@@ -109,11 +118,17 @@ class Reader {
   }
 
   /** Lit une suite de textes (chacun est redécoupé en phrases). */
-  play(texts: string[], label: string) {
+  play(texts: string[], label: string, options: PlayOptions = {}) {
     if (!speechSupported()) return;
     this.segments = texts.flatMap((t) => chunks(t)).filter(Boolean);
-    if (!this.segments.length) return;
-    this.set({ status: "playing", label, index: 0, total: this.segments.length });
+    this.onEnd = null;
+    if (!this.segments.length) {
+      this.stop();
+      options.onEnd?.();
+      return;
+    }
+    this.onEnd = options.onEnd ?? null;
+    this.set({ status: "playing", label, index: 0, total: this.segments.length, bar: options.bar ?? true });
     this.speakFrom(0);
   }
 
@@ -122,7 +137,10 @@ class Reader {
     const token = ++this.token;
     synth.cancel();
     if (index >= this.segments.length) {
+      const done = this.onEnd;
+      this.onEnd = null;
       this.set({ status: "idle", index: 0, total: 0, label: "" });
+      done?.();
       return;
     }
     const u = new SpeechSynthesisUtterance(this.segments[index]);
@@ -164,6 +182,7 @@ class Reader {
 
   stop() {
     this.token++;
+    this.onEnd = null;
     if (speechSupported()) window.speechSynthesis.cancel();
     this.segments = [];
     this.set({ status: "idle", index: 0, total: 0, label: "" });

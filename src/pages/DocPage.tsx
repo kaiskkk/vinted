@@ -10,6 +10,7 @@ import { FicheView } from "./docs/FicheView";
 import { FlashcardsView } from "./docs/FlashcardsView";
 import { FriseView } from "./docs/FriseView";
 import { JeuView } from "./docs/JeuView";
+import { OralView } from "./docs/OralView";
 import { PlanningView } from "./docs/PlanningView";
 import { QuizView } from "./docs/QuizView";
 import { RedactionView } from "./docs/RedactionView";
@@ -59,5 +60,7 @@ export default function DocPage({ id }: { id: string }) {
       return <JeuView initial={doc} onBack={back} />;
     case "copie":
       return <CopieView initial={doc} onBack={back} />;
+    case "oral":
+      return <OralView initial={doc} onBack={back} />;
   }
 }

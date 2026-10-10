@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArchiveIcon,
   ChevronDownIcon,
@@ -8,6 +8,7 @@ import {
   PlusIcon,
   SearchIcon,
   UploadIcon,
+  UsersIcon,
   XIcon,
 } from "../components/Icons";
 import { AccountButton } from "../components/AccountButton";
@@ -18,7 +19,7 @@ import { SeriePill } from "../components/Serie";
 import { ThemeToggle } from "../components/ThemeToggle";
 import { useToast } from "../components/Toasts";
 import { NiveauPicker, card } from "../components/ui";
-import { MODE_IDS, openDoc, openItem, openMode, type Mode } from "../hooks/useHashRoute";
+import { MODE_IDS, openClasse, openDoc, openItem, openMode, type Mode } from "../hooks/useHashRoute";
 import { useTheme } from "../hooks/useTheme";
 import { listClasseurs, listDocs, loadDoc } from "../lib/docs";
 import { fold, formatDate, plural } from "../lib/format";
@@ -26,6 +27,7 @@ import { isDue } from "../lib/leitner";
 import { downloadBackup, importAll, listLibrary, type ItemKind, type LibraryItem } from "../lib/library";
 import { today } from "../lib/planning";
 import { dayLabel, genreOf, upcomingAgenda } from "../lib/agenda";
+import { classesSupported, countNouveautes, listMesClasses } from "../lib/classes";
 import { listMaps } from "../lib/storage";
 
 type Filter =
@@ -41,7 +43,8 @@ type Filter =
   | "jeu"
   | "frise"
   | "redaction"
-  | "copie";
+  | "copie"
+  | "oral";
 const FILTERS: { value: Filter; label: string }[] = [
   { value: "tout", label: "Tout" },
   { value: "classeur", label: "Classeurs" },
@@ -52,6 +55,7 @@ const FILTERS: { value: Filter; label: string }[] = [
   { value: "flashcards", label: "Flashcards" },
   { value: "resume", label: "Résumés" },
   { value: "exercices", label: "Exercices" },
+  { value: "oral", label: "Oral" },
   { value: "jeu", label: "Jeux" },
   { value: "frise", label: "Frises" },
   { value: "redaction", label: "Devoirs" },
@@ -69,11 +73,13 @@ function modeCounts(items: LibraryItem[]): Record<Mode, number> {
     quiz: count(["quiz"]),
     flashcards: count(["flashcards"]),
     exercices: count(["exercices"]),
+    oral: count(["oral"]),
     jeux: count(["jeu"]),
     frise: count(["frise"]),
     redaction: count(["redaction"]),
     copie: count(["copie"]),
     agenda: upcomingAgenda().length,
+    classe: listMesClasses().length,
   };
 }
 
@@ -115,6 +121,21 @@ export default function Home() {
   const [items, setItems] = useState<LibraryItem[]>(listLibrary);
   const [todo] = useState<TodayItem[]>(todayItems);
   const [devoirs] = useState(() => upcomingAgenda());
+  const [classes] = useState(listMesClasses);
+  const [nouveautes, setNouveautes] = useState<{ code: string; nom: string; n: number }[]>([]);
+  // Documents ajoutés dans mes classes depuis ma dernière visite.
+  useEffect(() => {
+    if (!classesSupported || !classes.length) return;
+    let cancelled = false;
+    countNouveautes(classes)
+      .then((counts) => {
+        if (!cancelled) setNouveautes(classes.flatMap((c) => (counts[c.code] ? [{ code: c.code, nom: c.nom, n: counts[c.code] }] : [])));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [classes]);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<Filter>("tout");
   const [showAll, setShowAll] = useState(false);
@@ -200,7 +221,7 @@ export default function Home() {
           </p>
         </section>
 
-        {todo.length + devoirs.length > 0 && (
+        {todo.length + devoirs.length + nouveautes.length > 0 && (
           <section className="mt-8" aria-labelledby="aujourdhui">
             <h2
               id="aujourdhui"
@@ -209,6 +230,29 @@ export default function Home() {
               <ClockIcon size={15} /> Aujourd'hui
             </h2>
             <ul className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+              {nouveautes.map((c) => (
+                <li key={`classe-${c.code}`}>
+                  <button
+                    type="button"
+                    onClick={() => openClasse(c.code)}
+                    className={`${card} flex min-h-16 w-full items-center gap-3 px-3 py-2 text-left transition hover:-translate-y-0.5 hover:shadow-md`}
+                  >
+                    <span
+                      className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-linear-to-br text-white shadow-sm ${MODE_INFO.classe.gradient}`}
+                      aria-hidden="true"
+                    >
+                      <UsersIcon size={16} />
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate font-medium">
+                        {c.n} nouveau{c.n > 1 ? "x" : ""} document{c.n > 1 ? "s" : ""} dans ta classe
+                      </span>
+                      <span className="block truncate text-xs text-slate-500 dark:text-slate-400">{c.nom}</span>
+                    </span>
+                    <ChevronRightIcon size={18} className="shrink-0 text-slate-400" />
+                  </button>
+                </li>
+              ))}
               {devoirs.map((d) => {
                 const g = genreOf(d.genre);
                 const late = d.date < today();

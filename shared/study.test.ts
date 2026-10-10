@@ -159,3 +159,41 @@ describe("exercices, jeux et copies", () => {
     expect(c.exercices).toHaveLength(1);
   });
 });
+
+describe("interrogation orale", () => {
+  it("garde les questions avec une réponse, sans doublon", async () => {
+    const { sanitizeOral, isUsable } = await import("./study");
+    const o = sanitizeOral({
+      titre: "",
+      questions: [
+        { question: "Qu'est-ce qu'un volcan ?", reponse: "Une ouverture d'où sort le magma.", points: ["ouverture", "magma", "Magma", ""] },
+        { question: "qu'est-ce qu'un  volcan ?", reponse: "Doublon" },
+        { question: "Sans réponse ?", reponse: "" },
+        "Question seule ?",
+      ],
+    });
+    expect(o.titre).toBe("Interrogation orale");
+    expect(o.questions).toEqual([
+      { question: "Qu'est-ce qu'un volcan ?", reponse: "Une ouverture d'où sort le magma.", points: ["ouverture", "magma"] },
+    ]);
+    expect(isUsable("oral", o)).toBe(true);
+    expect(isUsable("oral", sanitizeOral({ questions: [] }))).toBe(false);
+  });
+
+  it("reconnaît le verdict malgré les variantes", async () => {
+    const { verdictOf, sanitizeCorrectionOrale } = await import("./study");
+    expect(verdictOf("juste")).toBe("juste");
+    expect(verdictOf("Correct !")).toBe("juste");
+    expect(verdictOf("Presque juste")).toBe("partiel");
+    expect(verdictOf("partiellement correct")).toBe("partiel");
+    expect(verdictOf("Incorrect")).toBe("faux");
+    expect(verdictOf("pas juste")).toBe("faux");
+    expect(verdictOf(3)).toBe("faux");
+    expect(sanitizeCorrectionOrale({ verdict: "juste", retour: " Bravo ", manque: ["x"] })).toEqual({
+      verdict: "juste",
+      retour: "Bravo",
+      manque: [],
+    });
+    expect(sanitizeCorrectionOrale({}).verdict).toBe("faux");
+  });
+});

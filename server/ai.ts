@@ -19,6 +19,7 @@ export function createAI(options: GeneratorOptions = {}) {
     simplifier: (input) => pick().study.simplifier(input),
     lire: (input) => pick().study.lire(input),
     copie: (input) => pick().study.copie(input),
+    oral: (input) => pick().study.oral(input),
   };
   return {
     generator,

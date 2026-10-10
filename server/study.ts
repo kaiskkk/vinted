@@ -64,6 +64,19 @@ export interface CopieInput {
   niveau?: Niveau;
 }
 
+export interface OralInput {
+  question: string;
+  /** Réponse attendue. */
+  attendu: string;
+  /** Éléments que la réponse doit contenir. */
+  points: string[];
+  /** Réponse de l'élève (dictée au micro ou écrite). */
+  reponse: string;
+  /** Titre de l'interrogation (« Les volcans »). */
+  contexte?: string;
+  niveau?: Niveau;
+}
+
 export interface StudyAI {
   /** Renvoie le document brut produit par Claude (le nettoyage est fait par l'appelant). */
   etude(input: EtudeInput): Promise<unknown>;
@@ -74,6 +87,8 @@ export interface StudyAI {
   lire(input: LireInput): Promise<string>;
   /** Analyse d'une copie corrigée (réponse brute, nettoyée par l'appelant). */
   copie(input: CopieInput): Promise<unknown>;
+  /** Correction d'une réponse donnée à l'oral (réponse brute, nettoyée par l'appelant). */
+  oral(input: OralInput): Promise<unknown>;
 }
 
 // ---------- Schémas de sortie (JSON structuré) ----------
@@ -155,6 +170,23 @@ const JeuSchema = z.object({
   motsCroises: z.array(z.object({ mot: z.string().describe("Un seul mot, sans espace"), indice: z.string() })),
 });
 
+const OralSchema = z.object({
+  titre: z.string(),
+  questions: z.array(
+    z.object({
+      question: z.string().describe("Question ouverte, courte"),
+      reponse: z.string().describe("Réponse attendue, en 1 à 3 phrases"),
+      points: z.array(z.string()).describe("2 à 4 éléments clés que la réponse doit contenir, en quelques mots"),
+    }),
+  ),
+});
+
+export const CorrectionOraleSchema = z.object({
+  verdict: z.enum(["juste", "partiel", "faux"]),
+  retour: z.string().describe("1 à 3 phrases pour l'élève, lues à voix haute"),
+  manque: z.array(z.string()).describe("Éléments attendus qui manquent ou sont faux ; vide si la réponse est juste"),
+});
+
 export const CopieSchema = z.object({
   titre: z.string().describe("Titre court du devoir"),
   matiere: z.string(),
@@ -198,6 +230,7 @@ export const SCHEMAS = {
   frise: FriseSchema,
   exercices: ExercicesSchema,
   jeu: JeuSchema,
+  oral: OralSchema,
 } as const;
 
 // ---------- Consignes ----------
@@ -315,7 +348,41 @@ Entre 8 et 20 blocs au total. Chaque contenu est court : 1 à 4 phrases ou une p
 - "paires" : 8 à 12 paires à relier (terme et sa définition courte, date et son événement, notion et son exemple). "terme" en 5 mots maximum, "definition" en 15 mots maximum.
 - "trous" : 6 à 10 phrases clés du cours dans lesquelles 1 ou 2 mots importants sont entre crochets, par exemple « La [photosynthèse] a lieu dans les [chloroplastes]. ». Les mots entre crochets sont courts (1 à 3 mots).
 - "motsCroises" : 8 à 12 mots importants du cours, chacun d'UN SEUL mot de 3 à 12 lettres (sans espace ni tiret), avec un indice clair de 12 mots maximum qui ne contient pas le mot.${consigne}`;
+    case "oral": {
+      const n = input.nombre ?? 8;
+      return `Prépare une interrogation orale de ${n} questions sur ce cours, de difficulté ${DIFFICULTE_CONSIGNE[input.difficulte ?? "moyen"]}, comme un professeur qui interroge un élève à l'oral.
+
+- "question" : une question ouverte, courte et claire (25 mots maximum), à laquelle on répond à voix haute en 1 à 4 phrases. Pas de QCM, pas de question fermée (oui / non).
+- "reponse" : la réponse attendue, exacte, en 1 à 3 phrases.
+- "points" : 2 à 4 éléments clés que la réponse doit contenir, en quelques mots chacun.
+- Varie les questions : définitions, explications (pourquoi, comment), exemples, dates, liens entre les notions. Couvre l'ensemble du cours, sans doublon.
+- Les questions sont lues à voix haute : pas de formule compliquée, pas de symbole, pas de mise en forme.${consigne}`;
+    }
   }
+}
+
+// ---------- Interrogation orale : correction d'une réponse ----------
+
+export function oralPrompt(input: OralInput): string {
+  const points = input.points.length ? `\n\n<elements_attendus>\n${input.points.map((p) => `- ${p}`).join("\n")}\n</elements_attendus>` : "";
+  return `Tu fais passer une interrogation orale${input.contexte?.trim() ? ` sur « ${input.contexte.trim()} »` : ""}. L'élève a répondu à voix haute : sa réponse a été transcrite automatiquement, donc ne tiens compte ni de l'orthographe, ni de la ponctuation, ni des mots mal reconnus qui ressemblent à l'oreille au bon mot.
+
+<question>
+${input.question}
+</question>
+
+<reponse_attendue>
+${input.attendu || "(non fournie : appuie-toi sur tes connaissances sûres)"}
+</reponse_attendue>${points}
+
+<reponse_eleve>
+${input.reponse}
+</reponse_eleve>
+
+Évalue le fond, pas la forme :
+- "verdict" : "juste" si l'essentiel est là et exact, même dit avec ses propres mots ; "partiel" si c'est en partie juste ou incomplet ; "faux" si c'est faux, hors sujet ou si l'élève ne sait pas.
+- "retour" : 1 à 3 phrases adressées directement à l'élève (tutoiement), bienveillantes et précises : ce qui est juste, puis ce qui manque ou ce qui est faux, avec la bonne réponse si besoin. Ce texte sera lu à voix haute : pas de liste, pas de symbole, pas de mise en forme.
+- "manque" : les éléments attendus qui manquent ou sont faux, en quelques mots chacun (vide si la réponse est juste).`;
 }
 
 // ---------- Copie corrigée ----------
@@ -431,6 +498,7 @@ export const MAX_TOKENS: Record<TypeEtude, number> = {
   frise: 6000,
   exercices: 9000,
   jeu: 6000,
+  oral: 6000,
 };
 
 export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
@@ -550,6 +618,19 @@ export function createStudyAI(options: GeneratorOptions = {}): StudyAI {
         ],
       });
       checkStopReason(response.stop_reason, "L'analyse de la copie a été coupée. Envoie moins de pages à la fois.");
+      if (!response.parsed_output) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
+      return response.parsed_output;
+    },
+
+    async oral(input) {
+      const client = getClient();
+      const response = await client.beta.messages.parse({
+        ...base(systemPrompt(input.niveau)),
+        max_tokens: 1500,
+        output_config: { effort: effortFromEnv(), format: betaZodOutputFormat(CorrectionOraleSchema) },
+        messages: [{ role: "user", content: oralPrompt(input) }],
+      });
+      checkStopReason(response.stop_reason, "La correction a été coupée. Donne une réponse plus courte.");
       if (!response.parsed_output) throw new UserFacingError("Claude a renvoyé une réponse illisible. Réessaie.", 502);
       return response.parsed_output;
     },

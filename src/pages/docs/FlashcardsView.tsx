@@ -3,13 +3,14 @@ import { ShareButton } from "../../components/ShareButton";
 import { ListenButton } from "../../components/ReadAloud";
 import { docSegments } from "../../lib/docSpeech";
 import { SavedIndicator } from "../../components/CanvasOverlays";
-import { CheckIcon, PencilIcon, PlusIcon, RefreshIcon, RotateIcon, ShuffleIcon, TrashIcon, XIcon } from "../../components/Icons";
+import { CheckIcon, MessageQuestionIcon, PencilIcon, PlusIcon, RefreshIcon, RotateIcon, ShuffleIcon, TrashIcon, XIcon } from "../../components/Icons";
 import { Modal, btn } from "../../components/Modal";
 import { SimplifyButton } from "../../components/Simplify";
 import { useToast } from "../../components/Toasts";
 import { AutoTextarea, Page, PageHeader, RichText, card, input } from "../../components/ui";
 import { useDoc } from "../../hooks/useDoc";
-import { newCard, shuffle, type FlashcardsDoc } from "../../lib/docs";
+import { openDoc } from "../../hooks/useHashRoute";
+import { newCard, oralFromFlashcards, saveDoc, shuffle, touchClasseur, type FlashcardsDoc } from "../../lib/docs";
 import { plural } from "../../lib/format";
 import { answer, deckStats, isDue, sessionQueue } from "../../lib/leitner";
 import { recordActivity } from "../../lib/serie";
@@ -318,6 +319,25 @@ export function FlashcardsView({ initial, onBack }: { initial: FlashcardsDoc; on
           {doc.cartes.length > 0 && (
             <button type="button" onClick={() => start(true)} className={`${btn.secondary} mt-3 w-full`}>
               <ShuffleIcon size={15} /> Réviser tout le paquet quand même
+            </button>
+          )}
+          {doc.cartes.length > 0 && (
+            <button
+              type="button"
+              className={`${btn.secondary} mt-2 w-full`}
+              onClick={() => {
+                const oral = oralFromFlashcards(doc);
+                if (!oral.questions.length) return toast.error("Écris d'abord le recto et le verso de tes cartes.");
+                try {
+                  saveDoc(oral);
+                  touchClasseur(oral.classeurId);
+                  openDoc(oral.id);
+                } catch (err) {
+                  toast.error(err instanceof Error ? err.message : "Création impossible.");
+                }
+              }}
+            >
+              <MessageQuestionIcon size={16} /> M'interroger à l'oral sur ce paquet
             </button>
           )}
         </section>

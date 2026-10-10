@@ -44,6 +44,8 @@ const SeriePage = lazyPage(() => import("./pages/Serie"));
 const CopiePage = lazyPage(() => import("./pages/Copie"));
 const AgendaPage = lazyPage(() => import("./pages/Agenda"));
 const PartagePage = lazyPage(() => import("./pages/Partage"));
+const ClassesPage = lazyPage(() => import("./pages/Classes"));
+const ClassePage = lazyPage(() => import("./pages/ClassePage"));
 
 function Loading({ label }: { label: string }) {
   return (
@@ -76,12 +78,16 @@ export default function App() {
     case "partage":
       page = <PartagePage key={route.id} id={route.id} />;
       break;
+    case "groupe":
+      page = <ClassePage key={route.code} code={route.code} />;
+      break;
     case "mode":
       if (route.mode === "cartes") page = <MindMaps />;
       else if (route.mode === "general") page = <GeneralPage />;
       else if (route.mode === "redaction") page = <RedactionPage />;
       else if (route.mode === "copie") page = <CopiePage />;
       else if (route.mode === "agenda") page = <AgendaPage />;
+      else if (route.mode === "classe") page = <ClassesPage />;
       else page = <ModePage key={route.mode} mode={route.mode} />;
       break;
     default:

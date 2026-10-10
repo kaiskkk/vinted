@@ -4,7 +4,22 @@ import { createHash, timingSafeEqual } from "node:crypto";
 import Anthropic from "@anthropic-ai/sdk";
 import { z } from "zod";
 import { sanitizeAiMap, type AiMap } from "../shared/aiMap";
-import { SOURCE_MAX, TYPES_ETUDE, isUsable, sanitizeCopie, sanitizeEtude, sanitizePlan, sanitizeRelecture, type TypeEtude } from "../shared/study";
+import {
+  SOURCE_MAX,
+  TYPES_ETUDE,
+  isUsable,
+  sanitizeCopie,
+  sanitizeCorrectionOrale,
+  sanitizeEtude,
+  sanitizePlan,
+  sanitizeRelecture,
+  type EtudeIA,
+  type ExercicesIA,
+  type FlashcardsIA,
+  type OralIA,
+  type QuizIA,
+  type TypeEtude,
+} from "../shared/study";
 import { MODEL, UserFacingError, type GenerateInput, type MindMapGenerator } from "./claude";
 import type { VerifyUser } from "./auth";
 import type { StudyAI } from "./study";
@@ -134,13 +149,34 @@ const CopieBody = z
     message: "Photos trop lourdes : envoie moins de pages à la fois.",
   });
 
+const OralBody = z.object({
+  question: z.string().trim().min(1, "Il manque la question.").max(1000),
+  attendu: z.string().max(3000).default(""),
+  points: z.array(z.string().max(300)).max(8).default([]),
+  reponse: z
+    .string()
+    .trim()
+    .min(1, "Réponds d'abord à la question, au micro ou au clavier.")
+    .max(4000, "Ta réponse est trop longue (4000 caractères maximum)."),
+  contexte: z.string().max(200).optional(),
+  niveau: Niveau,
+});
+
 /** Plafond des réponses par type, au cas où Claude en ferait trop. */
-function limitCount(type: TypeEtude, doc: ReturnType<typeof sanitizeEtude>, nombre?: number) {
+function limitCount(type: TypeEtude, doc: EtudeIA, nombre?: number): EtudeIA {
   if (!nombre) return doc;
-  if (type === "quiz" && "questions" in doc) return { ...doc, questions: doc.questions.slice(0, nombre) };
-  if (type === "flashcards" && "cartes" in doc) return { ...doc, cartes: doc.cartes.slice(0, nombre) };
-  if (type === "exercices" && "exercices" in doc) return { ...doc, exercices: doc.exercices.slice(0, nombre) };
-  return doc;
+  switch (type) {
+    case "quiz":
+      return { ...(doc as QuizIA), questions: (doc as QuizIA).questions.slice(0, nombre) };
+    case "oral":
+      return { ...(doc as OralIA), questions: (doc as OralIA).questions.slice(0, nombre) };
+    case "flashcards":
+      return { ...(doc as FlashcardsIA), cartes: (doc as FlashcardsIA).cartes.slice(0, nombre) };
+    case "exercices":
+      return { ...(doc as ExercicesIA), exercices: (doc as ExercicesIA).exercices.slice(0, nombre) };
+    default:
+      return doc;
+  }
 }
 
 /** En-tête HTTP qui transporte le code d'accès du site. */
@@ -371,6 +407,13 @@ export function createApi({
         return copie;
       }),
 
+    oral: (body: unknown, code?: Credentials | string | null) =>
+      handle("oral", body, code, OralBody, async (input, ai) => {
+        const correction = sanitizeCorrectionOrale(await ai.oral(input));
+        if (!correction.retour) throw new UserFacingError("L'IA n'a pas su corriger cette réponse. Réessaie.", 502);
+        return correction;
+      }),
+
     lire: (body: unknown, code?: Credentials | string | null) =>
       handle("lecture", body, code, LireBody, async (input, ai) => ({
         texte: (await ai.lire({ media: input.media, data: input.data.replace(/\s+/g, "") })).slice(0, SOURCE_MAX),
@@ -388,6 +431,7 @@ export const POST_ROUTES = {
   "/api/simplifier": "simplifier",
   "/api/lire": "lire",
   "/api/copie": "copie",
+  "/api/oral": "oral",
 } as const satisfies Record<string, keyof Api>;
 
 export type Api = ReturnType<typeof createApi>;

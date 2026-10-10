@@ -8,11 +8,13 @@ export type Mode =
   | "quiz"
   | "flashcards"
   | "exercices"
+  | "oral"
   | "jeux"
   | "frise"
   | "redaction"
   | "copie"
-  | "agenda";
+  | "agenda"
+  | "classe";
 export const MODE_IDS: Mode[] = [
   "general",
   "cartes",
@@ -21,11 +23,13 @@ export const MODE_IDS: Mode[] = [
   "quiz",
   "flashcards",
   "exercices",
+  "oral",
   "jeux",
   "frise",
   "redaction",
   "copie",
   "agenda",
+  "classe",
 ];
 
 export type Route =
@@ -35,11 +39,14 @@ export type Route =
   | { page: "classeur"; id: string }
   | { page: "doc"; id: string }
   | { page: "serie" }
-  | { page: "partage"; id: string };
+  | { page: "partage"; id: string }
+  | { page: "groupe"; code: string };
 
 function parse(hash: string): Route {
   const share = /^#\/partage\/([A-Za-z0-9_-]{8,64})/.exec(hash);
   if (share) return { page: "partage", id: share[1] };
+  const groupe = /^#\/classe\/([A-Za-z0-9-]{4,20})/.exec(hash);
+  if (groupe) return { page: "groupe", code: groupe[1].toUpperCase().replace(/-/g, "") };
   const m = /^#\/(carte|classeur|doc)\/([^/?#]+)/.exec(hash);
   if (m) {
     const id = decodeURIComponent(m[2]);
@@ -53,7 +60,8 @@ function parse(hash: string): Route {
 
 /**
  * Routage minimal par hash : #/ (accueil), #/<mode>, #/carte/<id> (éditeur de carte mentale),
- * #/classeur/<id>, #/doc/<id> (fiche, quiz, flashcards…), #/serie (série de révision) et #/partage/<id> (document partagé).
+ * #/classeur/<id>, #/doc/<id> (fiche, quiz, flashcards…), #/serie (série de révision), #/partage/<id> (document partagé)
+ * et #/classe/<code> (une classe du mode classe).
  */
 export function useHashRoute(): Route {
   const [route, setRoute] = useState(() => parse(window.location.hash));
@@ -78,6 +86,7 @@ export const openMap = (id: string) => go(`#/carte/${encodeURIComponent(id)}`);
 export const openClasseur = (id: string) => go(`#/classeur/${encodeURIComponent(id)}`);
 export const openDoc = (id: string) => go(`#/doc/${encodeURIComponent(id)}`);
 export const openSerie = () => go("#/serie");
+export const openClasse = (code: string) => go(`#/classe/${encodeURIComponent(code)}`);
 
 /** Ouvre un élément de la bibliothèque selon son type. */
 export function openItem(kind: string, id: string) {

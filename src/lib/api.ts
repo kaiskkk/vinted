@@ -8,6 +8,8 @@ import type {
   FriseIA,
   JeuIA,
   Niveau,
+  CorrectionOraleIA,
+  OralIA,
   PlanIA,
   QuizIA,
   RelectureIA,
@@ -147,6 +149,7 @@ interface EtudeResults {
   frise: FriseIA;
   exercices: ExercicesIA;
   jeu: JeuIA;
+  oral: OralIA;
 }
 
 export interface DevoirInfo {
@@ -191,6 +194,13 @@ export async function getHealth(): Promise<Health | null> {
     return null;
   }
 }
+
+/** Correction d'une réponse donnée à l'oral. */
+export const corrigerOral = (
+  data: { question: string; attendu: string; points: string[]; reponse: string; contexte?: string },
+  niveau: Niveau,
+  signal?: AbortSignal,
+) => post<CorrectionOraleIA>("/api/oral", { ...data, niveau }, signal);
 
 /** Analyse d'une copie corrigée (photos réduites en JPEG, en base64). */
 export const analyserCopie = (

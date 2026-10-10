@@ -17,8 +17,8 @@ export const DIFFICULTES: { value: Difficulte; label: string }[] = [
 ];
 
 /** Types de documents que Claude sait générer à partir d'un cours. */
-export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise" | "exercices" | "jeu";
-export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume", "frise", "exercices", "jeu"];
+export type TypeEtude = "fiche" | "revision" | "quiz" | "flashcards" | "resume" | "frise" | "exercices" | "jeu" | "oral";
+export const TYPES_ETUDE: TypeEtude[] = ["fiche", "revision", "quiz", "flashcards", "resume", "frise", "exercices", "jeu", "oral"];
 
 /** Longueur maximale du cours envoyé à Claude (environ 15 000 mots). */
 export const SOURCE_MAX = 60_000;
@@ -119,7 +119,33 @@ export interface JeuIA {
   motsCroises: { mot: string; indice: string }[];
 }
 
-export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA | FriseIA | ExercicesIA | JeuIA;
+// ---------- Interrogation orale ----------
+
+export interface OralQuestionIA {
+  /** Question ouverte, lue à voix haute. */
+  question: string;
+  /** Réponse attendue, en 1 à 3 phrases. */
+  reponse: string;
+  /** Éléments que la réponse doit contenir. */
+  points: string[];
+}
+export interface OralIA {
+  titre: string;
+  questions: OralQuestionIA[];
+}
+
+/** Correction d'une réponse donnée à l'oral. */
+export type Verdict = "juste" | "partiel" | "faux";
+export const VERDICTS: Verdict[] = ["juste", "partiel", "faux"];
+export interface CorrectionOraleIA {
+  verdict: Verdict;
+  /** Retour adressé à l'élève, lisible à voix haute. */
+  retour: string;
+  /** Éléments attendus qui manquaient ou étaient faux. */
+  manque: string[];
+}
+
+export type EtudeIA = FicheIA | RevisionIA | QuizIA | FlashcardsIA | ResumeIA | FriseIA | ExercicesIA | JeuIA | OralIA;
 
 // ---------- Analyse d'une copie corrigée ----------
 
@@ -492,6 +518,38 @@ export function sanitizeCopie(raw: unknown): CopieIA {
   };
 }
 
+export function sanitizeOral(raw: unknown, max = 30): OralIA {
+  const r = obj(raw);
+  const seen = new Set<string>();
+  const questions: OralQuestionIA[] = [];
+  for (const q of list(r.questions)) {
+    const o = typeof q === "string" ? { question: q } : obj(q);
+    const question = cleanText(o.question, 500);
+    const reponse = cleanText(o.reponse, 1500);
+    if (!question || !reponse || seen.has(fold(question))) continue;
+    seen.add(fold(question));
+    questions.push({ question, reponse, points: strings(o.points, 5, 200) });
+    if (questions.length >= max) break;
+  }
+  return { titre: cleanText(r.titre, 140) || "Interrogation orale", questions };
+}
+
+/** Verdict reconnu malgré les variantes (« Correct », « presque juste », « incorrect ») ; « faux » sinon. */
+export function verdictOf(v: unknown): Verdict {
+  if (typeof v !== "string") return "faux";
+  const s = fold(v);
+  if (/partiel|presque|incomplet/.test(s)) return "partiel";
+  if (/faux|incorrect|errone|pas juste|pas bon|hors sujet/.test(s)) return "faux";
+  if (/juste|correct|bon|vrai|exact/.test(s)) return "juste";
+  return "faux";
+}
+
+export function sanitizeCorrectionOrale(raw: unknown): CorrectionOraleIA {
+  const r = obj(raw);
+  const verdict = verdictOf(r.verdict);
+  return { verdict, retour: cleanText(r.retour, 1000), manque: verdict === "juste" ? [] : strings(r.manque, 5, 200) };
+}
+
 /** Nettoie la réponse de Claude selon le type demandé. */
 export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
   switch (type) {
@@ -511,6 +569,8 @@ export function sanitizeEtude(type: TypeEtude, raw: unknown): EtudeIA {
       return sanitizeExercices(raw);
     case "jeu":
       return sanitizeJeu(raw);
+    case "oral":
+      return sanitizeOral(raw);
   }
 }
 
@@ -535,5 +595,7 @@ export function isUsable(type: TypeEtude, doc: EtudeIA): boolean {
       const j = doc as JeuIA;
       return j.paires.length >= 3 || j.trous.length > 0 || j.motsCroises.length >= 3;
     }
+    case "oral":
+      return (doc as OralIA).questions.length > 0;
   }
 }

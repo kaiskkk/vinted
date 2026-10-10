@@ -59,7 +59,7 @@ export function ReadAloudBar() {
     return () => window.removeEventListener("hashchange", stop);
   }, []);
   // Les notifications s'affichent au-dessus de la barre, pour ne pas la cacher.
-  const visible = s.status !== "idle";
+  const visible = s.status !== "idle" && s.bar;
   useEffect(() => {
     const root = document.documentElement.style;
     if (visible) root.setProperty("--reader-bar", "4.5rem");
@@ -68,7 +68,7 @@ export function ReadAloudBar() {
       root.removeProperty("--reader-bar");
     };
   }, [visible]);
-  if (s.status === "idle") return null;
+  if (!visible) return null;
   const nextRate = RATES[(RATES.indexOf(s.rate) + 1) % RATES.length];
   const iconBtn = "flex h-11 w-11 shrink-0 items-center justify-center rounded-full transition hover:bg-white/15 active:scale-95";
   return (

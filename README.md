@@ -1,8 +1,8 @@
 # ecoleduc — outil d'étude
 
-Une application web personnelle pour apprendre et réviser ses cours, avec l'aide de l'IA (Gemini gratuit, ou Claude) : cartes mentales, fiches, fiches de révision, quiz, flashcards, résumés, frises chronologiques, aide à la rédaction, exercices corrigés pas à pas, jeux de révision, analyse de copies corrigées et agenda des devoirs. Elle marche aussi bien sur ordinateur que sur téléphone, et s'installe comme une vraie appli (PWA), utilisable même sans connexion.
+Une application web personnelle pour apprendre et réviser ses cours, avec l'aide de l'IA (Gemini gratuit, ou Claude) : cartes mentales, fiches, fiches de révision, quiz, flashcards, résumés, frises chronologiques, aide à la rédaction, exercices corrigés pas à pas, interrogations orales, jeux de révision, analyse de copies corrigées, agenda des devoirs et mode classe. Elle marche aussi bien sur ordinateur que sur téléphone, et s'installe comme une vraie appli (PWA), utilisable même sans connexion.
 
-- **Accueil** : une tuile par mode (Général, Carte mentale, Fiches, Révision, Quiz, Flashcards, Exercices, Jeux, Frise, Rédaction, Ma copie, Agenda), la **série** 🔥 en haut, ce qui est prévu **aujourd'hui** (cartes à revoir, séances du planning, devoirs à rendre) et **Mes documents récents** (tous les modes), avec recherche et filtre par type.
+- **Accueil** : une tuile par mode (Général, Carte mentale, Fiches, Révision, Quiz, Flashcards, Exercices, Oral, Jeux, Frise, Rédaction, Ma copie, Agenda, Ma classe), la **série** 🔥 en haut, ce qui est prévu **aujourd'hui** (cartes à revoir, séances du planning, devoirs à rendre, nouveaux documents dans tes classes) et **Mes documents récents** (tous les modes), avec recherche et filtre par type.
 - **Général** : ajoute ton cours une seule fois (le coller, écrire un sujet, ou importer un **PDF**, un **fichier texte** ou une **photo**), puis demande à Claude une carte mentale, une fiche, une fiche de révision, un quiz, des flashcards ou un résumé. Tout est rangé dans un **classeur**, avec une **discussion** pour poser tes questions sur le cours.
 - **Carte mentale** : l'éditeur de cartes, inchangé (canevas infini, boîte à outils, génération avec Claude, export PNG / JSON…).
 - **Fiches** : fiche structurée (notions clés, définitions, dates, formules, exemples, pièges, à retenir) avec un **code couleur** par type d'information, **4 styles** (classique, colorée, minimaliste, cahier), entièrement **modifiable** (texte, couleurs, ajout, déplacement et suppression de blocs, annuler / rétablir), **impression A4** propre et **export PDF**.
@@ -12,13 +12,15 @@ Une application web personnelle pour apprendre et réviser ses cours, avec l'aid
 - **Frise** : frise chronologique générée par l'IA à partir d'un thème ou d'un cours (événements datés et grandes périodes), avec une vue d'ensemble à l'échelle et la liste détaillée ; **modifiable** (ajouter, déplacer dans le temps, supprimer, annuler / rétablir), **imprimable** et exportable en PDF.
 - **Rédaction** : aide pour une dissertation, un commentaire, un exposé ou une rédaction. L'IA propose des **problématiques** et un **plan détaillé** (introduction, parties, sous-parties avec idées et exemples, conclusion, conseils), puis **relit ton texte** : points forts, ce qui peut être amélioré (avec l'extrait concerné et un conseil), remarques de langue, prochaine étape. Elle **n'écrit jamais le devoir à ta place**.
 - **Exercices** : exercices d'entraînement générés à partir d'un cours ou d'un sujet (nombre et difficulté au choix). Pour chacun : zone de réponse (écrite ou dictée), **indices** dévoilés un par un, puis **correction pas à pas** (étape par étape, ou tout d'un coup) et résultat ; « J'avais juste » / « À revoir » pour suivre ta progression. Imprimables (énoncés puis corrigés).
+- **Oral** : une interrogation comme au tableau. L'IA prépare des **questions ouvertes** sur ton cours (ou tu écris les tiennes, ou tu pars d'un paquet de flashcards). Le site **lit chaque question à voix haute**, tu **réponds au micro** (ou au clavier), puis l'IA **corrige ta réponse** : juste, en partie juste ou pas encore, ce qu'il manquait, et la réponse attendue, lue à voix haute elle aussi. À la fin : une note (½ point pour une réponse en partie juste), et « Refaire les questions ratées ». Si l'IA ne répond pas, tu peux te corriger toi-même.
 - **Jeux** : trois jeux de révision créés par l'IA sur ton cours : **paires** (associer chaque mot à sa définition, chronométré), **texte à trous** (toucher un trou puis le bon mot) et **mots croisés** (grille construite sur l'appareil, définitions horizontales et verticales, « Vérifier », « Solution », « Nouvelle grille »). Tes records sont gardés.
 - **Ma copie** : prends en photo une copie corrigée par ton professeur (jusqu'à 4 pages). L'IA lit la note et les annotations, puis donne un **bilan**, ce que tu as **bien fait**, chaque **erreur expliquée** (l'extrait, pourquoi c'est faux, la correction, un conseil), les **notions à revoir** et des **exercices** pour t'entraîner. « Flashcards de mes erreurs » en fait un paquet à réviser.
 - **Agenda** : devoirs, contrôles, exposés et oraux avec date, heure, matière et **rappel** (la veille, le jour même ou deux jours avant). Les rappels s'affichent à l'ouverture du site et en **notification** si tu les autorises ; **Dans mon agenda** les ajoute au calendrier du téléphone (fichier `.ics`, avec alarme) pour être prévenu même site fermé. Les devoirs du jour apparaissent sur l'accueil.
 - **Lecture à voix haute** : bouton **Écouter** sur chaque document (fiche, révision, résumé, quiz, flashcards, exercices, frise, plan de rédaction, copie, « Plus simple », messages du classeur). Une barre en bas permet pause, phrase précédente / suivante et vitesse (0,8× à 1,5×). C'est la voix française du navigateur, gratuite et sans internet.
+- **Ma classe** (avec les comptes) : crée une classe (ta classe, ou un groupe de révision entre amis) et donne son **code** (par exemple `K2DE-XFTK`) ou le **lien d'invitation** ; les autres la rejoignent depuis « Ma classe ». Les membres apparaissent par leur **prénom** (jamais leur email). Tout document, carte mentale ou classeur ajouté à la classe (bouton **Ajouter un document**, ou **Partager → Envoyer à ma classe**) arrive chez **chaque membre**, qui l'ouvre d'un tap : une copie est ajoutée à ses documents, avec ses propres réponses et scores. L'accueil signale les **nouveaux documents**. Le créateur choisit qui peut ajouter des documents (tout le monde, ou lui seulement, pratique pour un prof), peut fermer les inscriptions, retirer un membre, renommer ou supprimer la classe ; les autres peuvent la quitter.
 - **Partage** (avec les comptes) : bouton **Partager** sur chaque document, carte mentale et classeur. Il crée un **lien** à envoyer à un ami (copier ou « Envoyer… ») ; en l'ouvrant, ton ami (connecté à son compte) ajoute **une copie** à ses propres documents. Un classeur est partagé avec ses documents et ses cartes. Tes réponses, scores, records, brouillons et questions au classeur ne sont **jamais** partagés.
-- **Série** 🔥 : chaque jour où tu révises (quiz, flashcards, exercice, jeu, copie analysée, devoir coché, séance de planning, génération, question, rédaction, modification d'un document) compte ; série en cours, **record**, **calendrier** des jours révisés et **badges** (1, 3, 7, 14, 30, 60, 100 et 365 jours).
-- **Saisie vocale** : bouton **micro** à côté des zones de texte (cours, sujet, consigne, question, devoir, réponse d'exercice, agenda, demande de carte mentale), en français, avec la reconnaissance vocale gratuite du navigateur (Chrome, Edge, Safari, téléphone compris). Dis « virgule », « point d'interrogation » ou « à la ligne » pour ponctuer.
+- **Série** 🔥 : chaque jour où tu révises (quiz, flashcards, exercice, réponse à l'oral, jeu, copie analysée, devoir coché, séance de planning, génération, question, rédaction, modification d'un document) compte ; série en cours, **record**, **calendrier** des jours révisés et **badges** (1, 3, 7, 14, 30, 60, 100 et 365 jours).
+- **Saisie vocale** : bouton **micro** à côté des zones de texte (cours, sujet, consigne, question, devoir, réponse d'exercice ou d'oral, agenda, demande de carte mentale), en français, avec la reconnaissance vocale gratuite du navigateur (Chrome, Edge, Safari, téléphone compris). Dis « virgule », « point d'interrogation » ou « à la ligne » pour ponctuer.
 - **Comptes** (facultatif, gratuit avec Firebase) : inscription et connexion par email et mot de passe, sans vérification d'email. Une fois activés, la connexion est **obligatoire**, toutes les données sont **sauvegardées dans le compte** et retrouvées sur tous les appareils, et à la première connexion le site propose d'**importer** ce qui était déjà enregistré dans le navigateur.
 - **Partout** : niveau scolaire (collège, lycée, études supérieures) pour adapter le vocabulaire de Claude, bouton **« Plus simple »** (« Explique-moi plus simplement ») sur chaque bloc, sauvegarde automatique, **sauvegarde complète** de toutes les données en un fichier JSON (et restauration), thème **sombre / clair**, interface pensée pour le téléphone.
 - **Erreurs** : chaque génération affiche un chargement, puis, en cas de problème, un message clair en français avec **Réessayer**.
@@ -148,7 +150,7 @@ Sans configuration, le site marche comme avant : sans compte, avec les données 
 
 1. Va sur <https://console.firebase.google.com>, connecte-toi avec un compte Google et **crée un projet** (par exemple `ecoleduc`). Google Analytics n'est pas utile : tu peux le désactiver.
 2. **Authentication** (menu *Créer* / *Build*) → **Commencer** → onglet **Méthode de connexion** → **Adresse e-mail/Mot de passe** → active-le (laisse « Lien envoyé par e-mail » désactivé) → **Enregistrer**.
-3. **Firestore Database** → **Créer une base de données** → un emplacement en Europe (par exemple `europe-west9`, Paris) → **mode production** → **Créer**. Ouvre ensuite l'onglet **Règles**, remplace tout par le contenu du fichier [`firestore.rules`](firestore.rules) de ce dépôt, puis **Publier**. Ces règles font que chaque élève ne peut lire et modifier **que ses propres données**, et qu'un document partagé ne peut être ouvert qu'avec son lien (par un élève connecté) et modifié que par celui qui l'a partagé.
+3. **Firestore Database** → **Créer une base de données** → un emplacement en Europe (par exemple `europe-west9`, Paris) → **mode production** → **Créer**. Ouvre ensuite l'onglet **Règles**, remplace tout par le contenu du fichier [`firestore.rules`](firestore.rules) de ce dépôt, puis **Publier**. Ces règles font que chaque élève ne peut lire et modifier **que ses propres données**, qu'un document partagé ne peut être ouvert qu'avec son lien (par un élève connecté) et modifié que par celui qui l'a partagé, et qu'une classe n'est visible que par ses membres.
 4. ⚙️ **Paramètres du projet** → **Général** → *Vos applications* → icône **Web** (`</>`) → un nom (par exemple `ecoleduc`), sans Firebase Hosting → **Enregistrer l'application**. Copie le bloc `const firebaseConfig = { … };` affiché.
 5. **Authentication → Paramètres → Domaines autorisés** : ajoute l'adresse de ton site (par exemple `ecoleduc.netlify.app`).
 6. Sur Netlify : *Project configuration → Environment variables → Add a variable*, nom **`VITE_FIREBASE_CONFIG`**, valeur : **colle le bloc copié tel quel** (ou seulement ce qu'il y a entre les accolades). **Ne coche pas** « Contains secret values ». En local : `VITE_FIREBASE_CONFIG='{ "apiKey": "…", "authDomain": "…", "projectId": "…", "appId": "…" }'` dans `.env`.
@@ -156,7 +158,7 @@ Sans configuration, le site marche comme avant : sans compte, avec les données 
 
 Bon à savoir :
 
-- **Tu avais déjà collé les règles avant l'arrivée du partage ?** Recolle le contenu de [`firestore.rules`](firestore.rules) (Firestore → *Règles* → *Publier*) : le bloc `partages` est nécessaire pour les liens de partage.
+- **Tu avais déjà collé les règles avant l'arrivée du partage ou du mode classe ?** Recolle tout le contenu de [`firestore.rules`](firestore.rules) (Firestore → *Règles* → *Publier*) : les blocs `partages` et `classes` sont nécessaires.
 - Les valeurs de `firebaseConfig` ne sont **pas secrètes** (Google les prévoit pour être dans le site) : la sécurité vient des règles Firestore de l'étape 3. Les clés d'IA (`CLE_GEMINI`, `ANTHROPIC_API_KEY`), elles, restent uniquement sur le serveur.
 - Avec les comptes, l'IA n'est utilisable **que connecté** : le serveur vérifie le jeton de connexion de l'élève (signé par Google) avant chaque demande. Personne d'autre ne peut épuiser ton quota gratuit.
 - Si le déploiement échoue avec un message de **« secrets scanning »**, ajoute la variable `SECRETS_SCAN_SMART_DETECTION_OMIT_VALUES` avec pour valeur le texte de `apiKey` (celui qui commence par `AIza`), puis redéploie.
@@ -269,7 +271,8 @@ Navigateur (React)                Serveur Express (local)            API Claude
 ──────────────────                ──────────────────────────────     ──────────
 Carte mentale               ──►  POST /api/generate, /api/expand ──(clé API)──►  claude-sonnet-5-5
 Fiche, révision, quiz, frise ──►  POST /api/etude                          (sortie JSON structurée)
-Exercices, jeux             ──►  POST /api/etude
+Exercices, jeux, oral       ──►  POST /api/etude
+Correction d'une réponse orale ──► POST /api/oral
 Plan et relecture d'un devoir ──► POST /api/redaction
 Photo d'une copie corrigée  ──►  POST /api/copie
 Questions sur le cours      ──►  POST /api/chat
@@ -288,6 +291,8 @@ Photo / PDF scanné          ──►  POST /api/lire
 - L'**analyse de copie** envoie les photos réduites (JPEG, 1600 px) au serveur, qui les transmet à l'IA avec un schéma JSON (bilan, erreurs, notions, exercices) ; la réponse est vérifiée comme les autres.
 - Les **rappels de l'agenda** sont vérifiés à l'ouverture du site et au retour sur l'onglet (un seul rappel par devoir et par jour). Un site web ne peut pas réveiller le téléphone à heure fixe : pour une alarme fiable même site fermé, utilise **Dans mon agenda** (fichier `.ics` avec alarme, ouvert par l'agenda du téléphone).
 - Le **partage** enregistre une copie figée du document dans Firestore (`partages/{id}`, identifiant aléatoire de 20 caractères impossible à deviner) ; les règles n'autorisent que la lecture d'un partage dont on a le lien (pas de liste), par un élève connecté. Ouvrir le lien crée de nouveaux documents chez celui qui le reçoit : les deux copies vivent ensuite séparément.
+- L'**interrogation orale** réutilise la voix du navigateur pour lire les questions et la dictée (`SpeechRecognition`) pour la réponse ; seule la correction passe par le serveur (`/api/oral`), qui reçoit la question, la réponse attendue, ses mots clés et la réponse de l'élève (en tenant compte des mots mal reconnus par la dictée).
+- Le **mode classe** enregistre chaque classe dans Firestore : `classes/{code}` (nom, créateur, réglages), `classes/{code}/membres/{uid}` (prénom) et `classes/{code}/documents/{id}` (copies figées, comme les liens de partage). Le code (8 caractères sans lettres ambiguës) est l'identifiant de la classe ; les règles n'autorisent à la voir que ses membres, à s'inscrire que soi-même (et seulement si les inscriptions sont ouvertes), et à la régler que son créateur. La liste de tes classes est rangée avec tes données (`ed-groupe:{code}`), donc retrouvée sur tous tes appareils.
 - Le **planning de révision** est calculé sur l'appareil : chaque chapitre est appris un jour, puis revu à J+1, J+3 et J+7, la veille de l'examen est réservée au bilan.
 
 - **La clé API ne quitte jamais le serveur.** Le front appelle `/api/...` ; en développement, Vite relaie ces appels vers Express (voir `vite.config.ts`) ; en ligne, Netlify les envoie à la fonction `netlify/functions/api.ts`. Le fichier `.env` est ignoré par Git.
@@ -318,16 +323,16 @@ src/
   pages/          Home (accueil), MindMaps (mode Carte mentale), Editor (éditeur de cartes),
                   General et Classeur (mode Général), ModePage (Fiches, Révision, Quiz, Flashcards),
                   Redaction (aide à la rédaction), Copie (photo d'une copie), Agenda (devoirs et rappels),
-                  Partage (lien reçu), Serie (série de révision), Login (connexion),
+                  Partage (lien reçu), Classes et ClassePage (mode classe), Serie (série de révision), Login (connexion),
                   DocPage + docs/ (fiche, révision, planning, quiz, flashcards, résumé, frise, devoir,
-                  exercices, jeux, copie)
+                  exercices, jeux, copie, oral)
   components/     éditeur de cartes (nœuds, liens, boîte à outils…), import du cours, listes, « Plus simple »,
                   chargement / erreur Claude, en-têtes, panneaux du bas, notifications, lecture à voix haute,
                   bouton Partager, rappels de l'agenda
   hooks/          navigation, thème, document avec annuler/rétablir et sauvegarde, historique des cartes
   lib/            stockage (cartes, documents, classeurs), sauvegarde complète, planning, répétition espacée,
                   série, saisie vocale, lecture à voix haute (speech), agenda, mots croisés (crossword),
-                  partage (share), comptes (account, cloud) et synchronisation (sync),
+                  partage (share), mode classe (classes), comptes (account, cloud) et synchronisation (sync),
                   lecture des PDF et photos, génération, disposition des cartes, export, client API
 public/
   manifest.webmanifest, icons/   appli installable (nom, couleurs, icônes)
@@ -338,7 +343,7 @@ firestore.rules   règles de sécurité de Firestore, à coller dans la console 
 firebase.json     configuration des émulateurs Firebase (tests en local)
 ```
 
-- **Stockage** : chaque carte reste enregistrée au même format qu'avant (`mm-map:<id>`, index `mm-index`) : les cartes déjà créées s'ouvrent telles quelles. Les nouveaux documents sont dans `ed-doc:<id>` (index `ed-docs`), les classeurs dans `ed-classeur:<id>` (index `ed-classeurs`), le classeur de chaque carte dans `ed-liens-cartes`, le niveau dans `ed-niveau`, la série dans `ed-serie` et l'agenda dans `ed-agenda`. Avec les comptes, ce sont exactement ces données qui sont envoyées en ligne ; `sync-proprietaire`, `sync-attente` et `sync-curseur` (propres à l'appareil) suivent la synchronisation.
+- **Stockage** : chaque carte reste enregistrée au même format qu'avant (`mm-map:<id>`, index `mm-index`) : les cartes déjà créées s'ouvrent telles quelles. Les nouveaux documents sont dans `ed-doc:<id>` (index `ed-docs`), les classeurs dans `ed-classeur:<id>` (index `ed-classeurs`), le classeur de chaque carte dans `ed-liens-cartes`, le niveau dans `ed-niveau`, la série dans `ed-serie`, l'agenda dans `ed-agenda`, tes classes dans `ed-groupe:<code>` et ton prénom (pour les classes) dans `ed-prenom`. Avec les comptes, ce sont exactement ces données qui sont envoyées en ligne ; `sync-proprietaire`, `sync-attente` et `sync-curseur` (propres à l'appareil) suivent la synchronisation.
 - **Netlify** : pas de redirection nécessaire, car l'appli utilise des adresses en `#/…`. `netlify.toml` règle seulement le cache (service worker toujours vérifié, fichiers versionnés gardés longtemps).
 
 ## Dépannage
@@ -363,6 +368,9 @@ firebase.json     configuration des émulateurs Firebase (tests en local)
 | « La connexion par email n'est pas activée dans Firebase » | Étape 2 de « Comptes élèves » : active *Adresse e-mail/Mot de passe* dans Authentication |
 | « La sauvegarde en ligne est refusée » | Les règles Firestore ne sont pas les bonnes : recolle `firestore.rules` dans l'onglet *Règles*, puis *Publier* |
 | « Le partage n'est pas encore autorisé dans Firebase » | Recolle `firestore.rules` (avec le bloc `partages`) dans Firestore → *Règles*, puis *Publier* |
+| « Code inconnu, ou cette classe n'accepte plus de nouveaux membres » | Vérifie le code avec le créateur de la classe ; il a peut-être fermé les inscriptions (Réglages de la classe) |
+| Le mode classe dit « Action refusée » ou rien ne s'affiche | Recolle `firestore.rules` (avec le bloc `classes`) dans Firestore → *Règles*, puis *Publier* |
+| Le micro ne s'allume pas pendant l'oral | Autorise le micro pour le site ; sans dictée (Firefox), écris ta réponse dans la zone de texte |
 | Pas de bouton **Partager** | Le partage passe par les comptes : configure `VITE_FIREBASE_CONFIG` (voir « Comptes élèves ») |
 | Pas de bouton **Écouter**, ou voix étrange | Le navigateur n'a pas de voix française : sur téléphone, installe-la dans les réglages de synthèse vocale ; sur ordinateur, essaie Chrome ou Edge |
 | Les rappels n'arrivent pas en notification | Touche **Activer les rappels** dans l'Agenda et autorise les notifications ; pour une alarme même site fermé, utilise **Dans mon agenda** |
